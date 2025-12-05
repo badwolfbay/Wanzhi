@@ -34,11 +34,7 @@ jobs:
       shell: pwsh
       
     - name: Install Inno Setup
-      run: |
-        # Download Inno Setup
-        Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" -OutFile "innosetup.exe"
-        # Install silently
-        Start-Process -FilePath "innosetup.exe" -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
+      run: choco install innosetup -y
       shell: pwsh
       
     - name: Update Inno Setup script version
