@@ -1,0 +1,35 @@
+﻿<Window x:Class="Wanzhi.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="万枝" 
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        Topmost="False"
+        WindowState="Maximized"
+        ResizeMode="NoResize"
+        Loaded="Window_Loaded"
+        Closing="Window_Closing">
+    
+    <Grid x:Name="RootGrid">
+        <!-- 渐变背景层 -->
+        <Rectangle x:Name="BackgroundRect">
+            <Rectangle.Fill>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#F5F5F5" Offset="0"/>
+                    <GradientStop Color="#E0E0E0" Offset="1"/>
+                </LinearGradientBrush>
+            </Rectangle.Fill>
+        </Rectangle>
+        
+        <!-- 波浪动画层 (底部) -->
+        <Canvas x:Name="WaveCanvas" ClipToBounds="True" VerticalAlignment="Bottom" Height="400"/>
+        
+        <!-- 诗词显示层 -->
+        <Grid x:Name="PoetryGrid" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="100">
+            <!-- 动态内容容器：从右向左排列列，实现竖排效果 -->
+            <StackPanel x:Name="PoetryContainer" Orientation="Horizontal" FlowDirection="RightToLeft" HorizontalAlignment="Center"/>
+        </Grid>
+    </Grid>
+</Window>

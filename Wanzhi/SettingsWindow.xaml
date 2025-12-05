@@ -1,0 +1,144 @@
+<Window x:Class="Wanzhi.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="万枝 - 设置" 
+        Height="600" 
+        Width="500"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="#F5F5F5">
+    
+    <Grid Margin="20">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- 主题设置 -->
+                <GroupBox Header="主题" Padding="10" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="主题模式:" Margin="0,0,0,5"/>
+                        <ComboBox x:Name="ThemeComboBox" 
+                                 SelectionChanged="ThemeComboBox_SelectionChanged">
+                            <ComboBoxItem Content="浅色" Tag="Light"/>
+                            <ComboBoxItem Content="深色" Tag="Dark"/>
+                            <ComboBoxItem Content="跟随系统" Tag="System" IsSelected="True"/>
+                        </ComboBox>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- 背景设置 -->
+                <GroupBox Header="背景" Padding="10" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="背景颜色:" Margin="0,0,0,5"/>
+                        <Button x:Name="ColorPickerButton" 
+                               Content="选择背景颜色" 
+                               Click="ColorPickerButton_Click"
+                               Padding="10,5"
+                               Margin="0,0,0,10"/>
+
+                        <TextBlock Text="波浪颜色:" Margin="0,0,0,5"/>
+                        <Button x:Name="WaveColorPickerButton" 
+                               Content="选择波浪颜色" 
+                               Click="WaveColorPickerButton_Click"
+                               Padding="10,5"/>
+                        
+                        <CheckBox x:Name="EnableWaveCheckBox"
+                                 Content="启用波浪动画"
+                                 Margin="0,10,0,0"
+                                 IsChecked="True"
+                                 Checked="EnableWaveCheckBox_Changed"
+                                 Unchecked="EnableWaveCheckBox_Changed"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- 诗词设置 -->
+                <GroupBox Header="诗词显示" Padding="10" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="诗词字体:" Margin="0,0,0,5"/>
+                        <ComboBox x:Name="FontComboBox" 
+                                 Margin="0,0,0,10"
+                                 SelectionChanged="FontComboBox_SelectionChanged"/>
+
+                        <TextBlock Text="文字方向:" Margin="0,0,0,5"/>
+                        <ComboBox x:Name="OrientationComboBox" 
+                                 Margin="0,0,0,10"
+                                 SelectionChanged="OrientationComboBox_SelectionChanged">
+                            <ComboBoxItem Content="竖排 (默认)" Tag="Vertical"/>
+                            <ComboBoxItem Content="横排" Tag="Horizontal"/>
+                        </ComboBox>
+
+                        <TextBlock Text="诗词文字大小:" Margin="0,0,0,5"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Slider x:Name="PoetryFontSizeSlider"
+                                   Minimum="24"
+                                   Maximum="72"
+                                   Value="36"
+                                   Width="300"
+                                   ValueChanged="PoetryFontSizeSlider_ValueChanged"/>
+                            <TextBlock x:Name="PoetryFontSizeText" 
+                                      Text="36" 
+                                      Margin="10,0,0,0"
+                                      VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <TextBlock Text="作者文字大小:" Margin="0,10,0,5"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Slider x:Name="AuthorFontSizeSlider"
+                                   Minimum="12"
+                                   Maximum="36"
+                                   Value="18"
+                                   Width="300"
+                                   ValueChanged="AuthorFontSizeSlider_ValueChanged"/>
+                            <TextBlock x:Name="AuthorFontSizeText" 
+                                      Text="18" 
+                                      Margin="10,0,0,0"
+                                      VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <TextBlock Text="刷新间隔（分钟）:" Margin="0,10,0,5"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Slider x:Name="RefreshIntervalSlider"
+                                   Minimum="10"
+                                   Maximum="240"
+                                   Value="60"
+                                   Width="300"
+                                   ValueChanged="RefreshIntervalSlider_ValueChanged"/>
+                            <TextBlock x:Name="RefreshIntervalText" 
+                                      Text="60" 
+                                      Margin="10,0,0,0"
+                                      VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- 系统设置 -->
+                <GroupBox Header="系统" Padding="10" Margin="0,0,0,15">
+                    <StackPanel>
+                        <CheckBox x:Name="AutoStartCheckBox"
+                                 Content="开机自动启动"
+                                 Checked="AutoStartCheckBox_Changed"
+                                 Unchecked="AutoStartCheckBox_Changed"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- 按钮 -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+                    <Button Content="应用壁纸" 
+                           Click="SaveButton_Click"
+                           Width="100"
+                           Height="35"
+                           Margin="0,0,10,0"
+                           Background="#FF1E3A8A"
+                           Foreground="White"
+                           FontWeight="Bold"
+                           BorderThickness="0"/>
+                    <Button Content="取消" 
+                           Click="CancelButton_Click"
+                           Width="80"
+                           Height="30"/>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>
