@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*.*.*'  # 触发条件: 推送版本标签 (例如 v1.0.0)
 
+permissions:
+  contents: write  # 允许创建 release 和上传文件
+
 jobs:
   build-and-release:
     runs-on: windows-latest
