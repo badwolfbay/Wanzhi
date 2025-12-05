@@ -33,6 +33,30 @@ jobs:
         Compress-Archive -Path publish\* -DestinationPath "Wanzhi_${version}_Portable.zip"
       shell: pwsh
       
+    - name: Install Inno Setup
+      run: |
+        # Download Inno Setup
+        Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" -OutFile "innosetup.exe"
+        # Install silently
+        Start-Process -FilePath "innosetup.exe" -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
+      shell: pwsh
+      
+    - name: Update Inno Setup script version
+      run: |
+        $version = "${{ github.ref_name }}" -replace '^v', ''
+        $issContent = Get-Content "Wanzhi\WanzhiSetup.iss" -Raw
+        $issContent = $issContent -replace '#define MyAppVersion ".*"', "#define MyAppVersion `"$version`""
+        Set-Content "Wanzhi\WanzhiSetup.iss" -Value $issContent
+      shell: pwsh
+      
+    - name: Build installer with Inno Setup
+      run: |
+        $version = "${{ github.ref_name }}" -replace '^v', ''
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "Wanzhi\WanzhiSetup.iss"
+        # Rename output file to include version
+        Move-Item "Installer\WanzhiSetup_*.exe" "WanzhiSetup_$version.exe"
+      shell: pwsh
+      
     - name: Get version from tag
       id: get_version
       run: |
@@ -49,9 +73,16 @@ jobs:
           
           ## 📦 下载
           
-          ### 便携版 (推荐)
+          ### 安装包版 (推荐)
+          - **文件**: `WanzhiSetup_*.exe`
+          - 标准 Windows 安装程序
+          - 自动配置，一键安装
+          
+          ### 便携版
+          - **文件**: `Wanzhi_${{ github.ref_name }}_Portable.zip`
           - 解压即用，无需安装
-          - 需要 [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
+          
+          **系统要求**: Windows 10/11 (64-bit) + [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
           
           ## ✨ 主要特性
           
@@ -63,16 +94,22 @@ jobs:
           
           ## 🚀 快速开始
           
-          1. 下载并解压
+          **安装包版**:
+          1. 下载并运行 `WanzhiSetup_*.exe`
+          2. 按照向导完成安装
+          3. 运行万枝
+          
+          **便携版**:
+          1. 下载并解压 ZIP 文件
           2. 运行 `Wanzhi.exe`
           3. 右键托盘图标 → 设置
-          4. 点击"应用壁纸"
           
           ---
           
           完整文档: [README.md](https://github.com/${{ github.repository }}/blob/main/README.md)
         files: |
           Wanzhi_${{ github.ref_name }}_Portable.zip
+          WanzhiSetup_*.exe
         draft: false
         prerelease: false
       env:
