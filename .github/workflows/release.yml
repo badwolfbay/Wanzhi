@@ -1,0 +1,76 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # 触发条件: 推送版本标签 (例如 v1.0.0)
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+        
+    - name: Restore dependencies
+      run: dotnet restore Wanzhi/Wanzhi.csproj
+      
+    - name: Build Release
+      run: dotnet publish Wanzhi/Wanzhi.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
+      
+    - name: Create portable package
+      run: |
+        $version = "${{ github.ref_name }}"
+        Compress-Archive -Path publish\* -DestinationPath "Wanzhi_${version}_Portable.zip"
+      shell: pwsh
+      
+    - name: Get version from tag
+      id: get_version
+      run: |
+        $version = "${{ github.ref_name }}" -replace '^v', ''
+        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+      shell: pwsh
+      
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: 万枝 ${{ github.ref_name }} - Release
+        body: |
+          # 万枝 ${{ github.ref_name }}
+          
+          ## 📦 下载
+          
+          ### 便携版 (推荐)
+          - 解压即用，无需安装
+          - 需要 [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
+          
+          ## ✨ 主要特性
+          
+          - 🎨 精美的波浪动画背景
+          - 📜 每日诗词自动更新
+          - 🎭 支持竖排/横排双向排版
+          - 🌈 自定义背景色和波浪色
+          - 🖋️ 字体和字号自由调整
+          
+          ## 🚀 快速开始
+          
+          1. 下载并解压
+          2. 运行 `Wanzhi.exe`
+          3. 右键托盘图标 → 设置
+          4. 点击"应用壁纸"
+          
+          ---
+          
+          完整文档: [README.md](https://github.com/${{ github.repository }}/blob/main/README.md)
+        files: |
+          Wanzhi_${{ github.ref_name }}_Portable.zip
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
