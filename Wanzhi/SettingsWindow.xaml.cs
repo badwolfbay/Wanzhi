@@ -221,13 +221,16 @@ namespace Wanzhi
             _settings.AutoStart = enabled;
         }
 
-        private void SaveButton_Click(object sender, RoutedEventArgs e)
+        private async void SaveButton_Click(object sender, RoutedEventArgs e)
         {
             _settings.Save();
             
             // 显示主窗口（壁纸）
             var app = Application.Current as App;
-            app?.ShowMainWindow();
+            if (app != null)
+            {
+                await app.ShowMainWindowAsync();
+            }
             
             Close();
         }
@@ -250,14 +253,38 @@ namespace Wanzhi
         {
             Title = "选择颜色";
             Width = 420;
-            Height = 400;
+            Height = 520;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             ResizeMode = ResizeMode.NoResize;
 
             SelectedColor = currentColor;
 
             var mainPanel = new StackPanel { Margin = new Thickness(10) };
+            Content = mainPanel;
             
+            // 显示加载提示
+            var loadingText = new TextBlock 
+            { 
+                Text = "加载中...", 
+                Margin = new Thickness(10),
+                FontSize = 14,
+                Foreground = Brushes.Gray,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            mainPanel.Children.Add(loadingText);
+            
+            // 异步加载UI元素，避免阻塞
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                mainPanel.Children.Remove(loadingText);
+                BuildColorPickers(mainPanel, currentColor);
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+
+        private void BuildColorPickers(StackPanel mainPanel, System.Windows.Media.Color currentColor)
+        {
+            // 浅色区域
             mainPanel.Children.Add(new TextBlock { Text = "浅色 / 背景色", Margin = new Thickness(0,0,0,5), FontWeight = FontWeights.Bold });
             
             var lightColorsPanel = new WrapPanel();
@@ -270,6 +297,7 @@ namespace Wanzhi
             AddColorButtons(lightColorsPanel, lightColors, currentColor);
             mainPanel.Children.Add(lightColorsPanel);
 
+            // 深色区域
             mainPanel.Children.Add(new TextBlock { Text = "深色 / 波浪色", Margin = new Thickness(0,10,0,5), FontWeight = FontWeights.Bold });
 
             var darkColorsPanel = new WrapPanel();
@@ -283,7 +311,112 @@ namespace Wanzhi
             AddColorButtons(darkColorsPanel, darkColors, currentColor);
             mainPanel.Children.Add(darkColorsPanel);
 
-            Content = mainPanel;
+            // 自定义颜色输入区域
+            mainPanel.Children.Add(new TextBlock { Text = "自定义颜色", Margin = new Thickness(0,15,0,5), FontWeight = FontWeights.Bold });
+            
+            var customColorPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0,0,0,10) };
+            
+            // 输入框
+            var customColorTextBox = new TextBox 
+            { 
+                Width = 120, 
+                Height = 30,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Padding = new Thickness(5),
+                Text = currentColor.ToString()
+            };
+            
+            // 预览框
+            var previewBorder = new Border
+            {
+                Width = 40,
+                Height = 30,
+                Margin = new Thickness(10,0,10,0),
+                BorderBrush = Brushes.Gray,
+                BorderThickness = new Thickness(1),
+                Background = new SolidColorBrush(currentColor)
+            };
+            
+            // 确定按钮
+            var applyButton = new Button
+            {
+                Content = "应用",
+                Width = 60,
+                Height = 30,
+                Padding = new Thickness(5)
+            };
+            
+            // 错误提示
+            var errorText = new TextBlock
+            {
+                Foreground = Brushes.Red,
+                Margin = new Thickness(10,0,0,0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Visibility = Visibility.Collapsed
+            };
+            
+            // 输入框文本变化事件 - 实时预览
+            customColorTextBox.TextChanged += (s, e) =>
+            {
+                try
+                {
+                    var inputText = customColorTextBox.Text.Trim();
+                    // 如果不以#开头，自动添加
+                    if (!inputText.StartsWith("#"))
+                    {
+                        inputText = "#" + inputText;
+                    }
+                    
+                    var color = (System.Windows.Media.Color)ColorConverter.ConvertFromString(inputText);
+                    previewBorder.Background = new SolidColorBrush(color);
+                    errorText.Visibility = Visibility.Collapsed;
+                }
+                catch
+                {
+                    errorText.Text = "无效颜色";
+                    errorText.Visibility = Visibility.Visible;
+                }
+            };
+            
+            // 应用按钮点击事件
+            applyButton.Click += (s, e) =>
+            {
+                try
+                {
+                    var inputText = customColorTextBox.Text.Trim();
+                    if (!inputText.StartsWith("#"))
+                    {
+                        inputText = "#" + inputText;
+                    }
+                    
+                    var color = (System.Windows.Media.Color)ColorConverter.ConvertFromString(inputText);
+                    SelectedColor = color;
+                    DialogResult = true;
+                    Close();
+                }
+                catch
+                {
+                    errorText.Text = "无效颜色代码";
+                    errorText.Visibility = Visibility.Visible;
+                }
+            };
+            
+            customColorPanel.Children.Add(new TextBlock { Text = "#", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,5,0) });
+            customColorPanel.Children.Add(customColorTextBox);
+            customColorPanel.Children.Add(previewBorder);
+            customColorPanel.Children.Add(applyButton);
+            customColorPanel.Children.Add(errorText);
+            
+            mainPanel.Children.Add(customColorPanel);
+            
+            // 提示文本
+            mainPanel.Children.Add(new TextBlock 
+            { 
+                Text = "提示: 输入6位或8位十六进制颜色代码，如 FF5733 或 FFFF5733", 
+                FontSize = 10,
+                Foreground = Brushes.Gray,
+                TextWrapping = TextWrapping.Wrap
+            });
         }
 
         private void AddColorButtons(Panel panel, string[] colors, System.Windows.Media.Color currentColor)

@@ -59,7 +59,7 @@ public partial class MainWindow : Window
             // 如果是在后台运行，自动更新壁纸
             if (Visibility != Visibility.Visible)
             {
-                ApplyAsWallpaper(silent: true);
+                await ApplyAsWallpaperAsync(silent: true);
             }
         };
 
@@ -221,7 +221,7 @@ public partial class MainWindow : Window
             UpdatePoetryDisplay(poetry);
             
             // 强制保存一次壁纸以验证
-            ApplyAsWallpaper(silent: true); 
+            _ = ApplyAsWallpaperAsync(silent: true); 
         }
     }
 
@@ -592,9 +592,16 @@ public partial class MainWindow : Window
     /// <summary>
     /// 生成图片并设置为系统壁纸
     /// </summary>
-    public void ApplyAsWallpaper(bool silent = false)
+    public async System.Threading.Tasks.Task ApplyAsWallpaperAsync(bool silent = false)
     {
         App.Log("ApplyAsWallpaper called (Static Image Mode).");
+        
+        // 确保诗词已加载
+        if (_currentPoetry == null)
+        {
+            App.Log("诗词未加载，等待加载完成...");
+            await LoadPoetryAsync();
+        }
         
         try
         {

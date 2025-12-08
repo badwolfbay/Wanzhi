@@ -119,7 +119,7 @@ public partial class App : Application
         }
     }
 
-    public void ShowMainWindow()
+    public async System.Threading.Tasks.Task ShowMainWindowAsync()
     {
         try
         {
@@ -127,7 +127,7 @@ public partial class App : Application
             if (_mainWindow != null)
             {
                 // 应用为壁纸（包含显示逻辑）
-                _mainWindow.ApplyAsWallpaper();
+                await _mainWindow.ApplyAsWallpaperAsync();
                 _mainWindow.Activate();
                 Log("MainWindow wallpaper applied and activated.");
             }
