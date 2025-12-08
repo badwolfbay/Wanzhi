@@ -86,8 +86,8 @@ public partial class MainWindow : Window
             InitializeWaveRenderer();
         }
 
-        // 加载诗词
-        await LoadPoetryAsync();
+        // 加载诗词（后台异步，不阻塞启动）
+        _ = LoadPoetryAsync();
 
         // 启动动画
         if (AppSettings.Instance.EnableWaveAnimation)
@@ -480,20 +480,48 @@ public partial class MainWindow : Window
     private void ApplyTheme()
     {
         var settings = AppSettings.Instance;
-        
-        // 应用背景色
         Color bgColor;
-        try 
+        
+        // 根据主题模式确定背景颜色
+        switch (settings.Theme)
         {
-            bgColor = (Color)ColorConverter.ConvertFromString(settings.BackgroundColor);
-            BackgroundRect.Fill = new SolidColorBrush(bgColor);
+            case ThemeMode.Light:
+                bgColor = Color.FromRgb(245, 245, 245); // 浅灰色背景
+                break;
+                
+            case ThemeMode.Dark:
+                bgColor = Color.FromRgb(30, 30, 30); // 深色背景
+                break;
+                
+            case ThemeMode.System:
+                // 检测系统主题
+                bool isSystemDark = _themeDetector.IsDarkTheme();
+                bgColor = isSystemDark 
+                    ? Color.FromRgb(30, 30, 30)  // 深色
+                    : Color.FromRgb(245, 245, 245); // 浅色
+                break;
+                
+            default:
+                bgColor = Color.FromRgb(245, 245, 245);
+                break;
+        }
+        
+        // 如果用户自定义了背景色（不是默认的深蓝色），使用自定义颜色覆盖主题默认值
+        try
+        {
+            // 默认背景色是 #FF1E3A8A (深蓝色)
+            if (settings.BackgroundColor != "#FF1E3A8A")
+            {
+                var customColor = (Color)ColorConverter.ConvertFromString(settings.BackgroundColor);
+                bgColor = customColor;
+            }
         }
         catch
         {
-            // 默认浅色背景
-            bgColor = Color.FromRgb(245, 245, 245);
-            BackgroundRect.Fill = new SolidColorBrush(bgColor);
+            // 如果解析失败，使用主题默认颜色
         }
+        
+        BackgroundRect.Fill = new SolidColorBrush(bgColor);
 
         // 确定当前主题 (基于背景亮度)
         // 计算相对亮度: 0.299*R + 0.587*G + 0.114*B
