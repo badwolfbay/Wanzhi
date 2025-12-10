@@ -12,156 +12,187 @@
         Background="#F5F5F5">
     
     <Grid Margin="20">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel>
-                <!-- 主题设置 -->
-                <GroupBox Header="主题" Padding="10" Margin="0,0,0,15">
-                    <StackPanel>
-                        <TextBlock Text="主题模式:" Margin="0,0,0,5"/>
-                        <ComboBox x:Name="ThemeComboBox" 
-                                 SelectionChanged="ThemeComboBox_SelectionChanged">
-                            <ComboBoxItem Content="浅色" Tag="Light"/>
-                            <ComboBoxItem Content="深色" Tag="Dark"/>
-                            <ComboBoxItem Content="跟随系统" Tag="System" IsSelected="True"/>
-                        </ComboBox>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 上半部分：Tab 分页内容 -->
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+            <TabControl>
+                <!-- 外观 -->
+                <TabItem Header="外观">
+                    <StackPanel Margin="0,10,0,0">
+                        <!-- 主题设置 -->
+                        <GroupBox Header="主题" Padding="10" Margin="0,0,0,15">
+                            <StackPanel>
+                                <TextBlock Text="主题模式:" Margin="0,0,0,5"/>
+                                <ComboBox x:Name="ThemeComboBox" 
+                                         SelectionChanged="ThemeComboBox_SelectionChanged">
+                                    <ComboBoxItem Content="浅色" Tag="Light"/>
+                                    <ComboBoxItem Content="深色" Tag="Dark"/>
+                                    <ComboBoxItem Content="跟随系统" Tag="System" IsSelected="True"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <!-- 背景设置 -->
+                        <GroupBox Header="背景" Padding="10" Margin="0,0,0,15">
+                            <StackPanel>
+                                <TextBlock Text="背景颜色:" Margin="0,0,0,5"/>
+                                <Button x:Name="ColorPickerButton" 
+                                       Content="选择背景颜色" 
+                                       Click="ColorPickerButton_Click"
+                                       Padding="10,5"
+                                       Margin="0,0,0,10"/>
+
+                                <TextBlock Text="波浪颜色:" Margin="0,0,0,5"/>
+                                <Button x:Name="WaveColorPickerButton" 
+                                       Content="选择波浪颜色" 
+                                       Click="WaveColorPickerButton_Click"
+                                       Padding="10,5"/>
+                                
+                                <CheckBox x:Name="EnableWaveCheckBox"
+                                         Content="启用波浪动画"
+                                         Margin="0,10,0,0"
+                                         IsChecked="True"
+                                         Checked="EnableWaveCheckBox_Changed"
+                                         Unchecked="EnableWaveCheckBox_Changed"/>
+                            </StackPanel>
+                        </GroupBox>
                     </StackPanel>
-                </GroupBox>
+                </TabItem>
 
-                <!-- 背景设置 -->
-                <GroupBox Header="背景" Padding="10" Margin="0,0,0,15">
-                    <StackPanel>
-                        <TextBlock Text="背景颜色:" Margin="0,0,0,5"/>
-                        <Button x:Name="ColorPickerButton" 
-                               Content="选择背景颜色" 
-                               Click="ColorPickerButton_Click"
-                               Padding="10,5"
-                               Margin="0,0,0,10"/>
+                <!-- 诗词排版 -->
+                <TabItem Header="诗词排版">
+                    <GroupBox Header="排版" Padding="10" Margin="0,10,0,10">
+                        <StackPanel>
+                            <TextBlock Text="文字方向:" Margin="0,0,0,5"/>
+                            <ComboBox x:Name="OrientationComboBox" 
+                                     Margin="0,0,0,10"
+                                     SelectionChanged="OrientationComboBox_SelectionChanged">
+                                <ComboBoxItem Content="竖排 (默认)" Tag="Vertical"/>
+                                <ComboBoxItem Content="横排" Tag="Horizontal"/>
+                            </ComboBox>
 
-                        <TextBlock Text="波浪颜色:" Margin="0,0,0,5"/>
-                        <Button x:Name="WaveColorPickerButton" 
-                               Content="选择波浪颜色" 
-                               Click="WaveColorPickerButton_Click"
-                               Padding="10,5"/>
-                        
-                        <CheckBox x:Name="EnableWaveCheckBox"
-                                 Content="启用波浪动画"
-                                 Margin="0,10,0,0"
-                                 IsChecked="True"
-                                 Checked="EnableWaveCheckBox_Changed"
-                                 Unchecked="EnableWaveCheckBox_Changed"/>
-                    </StackPanel>
-                </GroupBox>
+                            <TextBlock Text="竖排对齐:" Margin="0,0,0,5"/>
+                            <ComboBox x:Name="VerticalAlignComboBox" 
+                                     Margin="0,0,0,10"
+                                     SelectionChanged="VerticalAlignComboBox_SelectionChanged">
+                                <ComboBoxItem Content="顶部对齐" Tag="Top"/>
+                                <ComboBoxItem Content="居中对齐" Tag="Center"/>
+                                <ComboBoxItem Content="底部对齐" Tag="Bottom"/>
+                            </ComboBox>
 
-                <!-- 诗词设置 -->
-                <GroupBox Header="诗词显示" Padding="10" Margin="0,0,0,15">
-                    <StackPanel>
-                        <TextBlock Text="正文字体:" Margin="0,0,0,5"/>
-                        <ComboBox x:Name="FontComboBox" 
-                                 Margin="0,0,0,10"
-                                 SelectionChanged="FontComboBox_SelectionChanged"/>
+                            <TextBlock Text="横排对齐:" Margin="0,0,0,5"/>
+                            <ComboBox x:Name="HorizontalAlignComboBox" 
+                                     Margin="0,0,0,10"
+                                     SelectionChanged="HorizontalAlignComboBox_SelectionChanged">
+                                <ComboBoxItem Content="左对齐" Tag="Left"/>
+                                <ComboBoxItem Content="居中对齐" Tag="Center"/>
+                                <ComboBoxItem Content="右对齐" Tag="Right"/>
+                            </ComboBox>
 
-                        <TextBlock Text="标题与作者字体:" Margin="0,0,0,5"/>
-                        <ComboBox x:Name="AuthorFontComboBox" 
-                                 Margin="0,0,0,10"
-                                 SelectionChanged="AuthorFontComboBox_SelectionChanged"/>
+                            <Separator Margin="0,5,0,10"/>
 
-                        <TextBlock Text="文字方向:" Margin="0,0,0,5"/>
-                        <ComboBox x:Name="OrientationComboBox" 
-                                 Margin="0,0,0,10"
-                                 SelectionChanged="OrientationComboBox_SelectionChanged">
-                            <ComboBoxItem Content="竖排 (默认)" Tag="Vertical"/>
-                            <ComboBoxItem Content="横排" Tag="Horizontal"/>
-                        </ComboBox>
-
-                        <TextBlock Text="竖排对齐:" Margin="0,0,0,5"/>
-                        <ComboBox x:Name="VerticalAlignComboBox" 
-                                 Margin="0,0,0,10"
-                                 SelectionChanged="VerticalAlignComboBox_SelectionChanged">
-                            <ComboBoxItem Content="顶部对齐" Tag="Top"/>
-                            <ComboBoxItem Content="居中对齐" Tag="Center"/>
-                            <ComboBoxItem Content="底部对齐" Tag="Bottom"/>
-                        </ComboBox>
-
-                        <TextBlock Text="横排对齐:" Margin="0,0,0,5"/>
-                        <ComboBox x:Name="HorizontalAlignComboBox" 
-                                 Margin="0,0,0,10"
-                                 SelectionChanged="HorizontalAlignComboBox_SelectionChanged">
-                            <ComboBoxItem Content="左对齐" Tag="Left"/>
-                            <ComboBoxItem Content="居中对齐" Tag="Center"/>
-                            <ComboBoxItem Content="右对齐" Tag="Right"/>
-                        </ComboBox>
-
-                        <TextBlock Text="诗词文字大小:" Margin="0,0,0,5"/>
-                        <StackPanel Orientation="Horizontal">
-                            <Slider x:Name="PoetryFontSizeSlider"
-                                   Minimum="24"
-                                   Maximum="72"
-                                   Value="36"
-                                   Width="300"
-                                   ValueChanged="PoetryFontSizeSlider_ValueChanged"/>
-                            <TextBlock x:Name="PoetryFontSizeText" 
-                                      Text="36" 
-                                      Margin="10,0,0,0"
-                                      VerticalAlignment="Center"/>
+                            <!-- 刷新频率 -->
+                            <TextBlock Text="刷新间隔（分钟）:" Margin="0,0,0,5"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Slider x:Name="RefreshIntervalSlider"
+                                       Minimum="10"
+                                       Maximum="240"
+                                       Value="60"
+                                       HorizontalAlignment="Stretch"
+                                       MinWidth="250"
+                                       ValueChanged="RefreshIntervalSlider_ValueChanged"/>
+                                <TextBlock x:Name="RefreshIntervalText" 
+                                          Text="60" 
+                                          Margin="10,0,0,0"
+                                          VerticalAlignment="Center"/>
+                            </StackPanel>
                         </StackPanel>
+                    </GroupBox>
+                </TabItem>
 
-                        <TextBlock Text="作者文字大小:" Margin="0,10,0,5"/>
-                        <StackPanel Orientation="Horizontal">
-                            <Slider x:Name="AuthorFontSizeSlider"
-                                   Minimum="12"
-                                   Maximum="36"
-                                   Value="18"
-                                   Width="300"
-                                   ValueChanged="AuthorFontSizeSlider_ValueChanged"/>
-                            <TextBlock x:Name="AuthorFontSizeText" 
-                                      Text="18" 
-                                      Margin="10,0,0,0"
-                                      VerticalAlignment="Center"/>
+                <!-- 诗词样式 -->
+                <TabItem Header="诗词样式">
+                    <GroupBox Header="字体与大小" Padding="10" Margin="0,10,0,10">
+                        <StackPanel>
+                            <TextBlock Text="正文字体:" Margin="0,0,0,5"/>
+                            <ComboBox x:Name="FontComboBox" 
+                                     Margin="0,0,0,10"
+                                     SelectionChanged="FontComboBox_SelectionChanged"/>
+
+                            <TextBlock Text="标题与作者字体:" Margin="0,0,0,5"/>
+                            <ComboBox x:Name="AuthorFontComboBox" 
+                                     Margin="0,0,0,10"
+                                     SelectionChanged="AuthorFontComboBox_SelectionChanged"/>
+
+                            <Separator Margin="0,5,0,10"/>
+
+                            <!-- 文字大小 -->
+                            <TextBlock Text="诗词文字大小:" Margin="0,0,0,5"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Slider x:Name="PoetryFontSizeSlider"
+                                       Minimum="24"
+                                       Maximum="72"
+                                       Value="36"
+                                       HorizontalAlignment="Stretch"
+                                       MinWidth="250"
+                                       ValueChanged="PoetryFontSizeSlider_ValueChanged"/>
+                                <TextBlock x:Name="PoetryFontSizeText" 
+                                          Text="36" 
+                                          Margin="10,0,0,0"
+                                          VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <TextBlock Text="作者文字大小:" Margin="0,10,0,5"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Slider x:Name="AuthorFontSizeSlider"
+                                       Minimum="12"
+                                       Maximum="36"
+                                       Value="18"
+                                       HorizontalAlignment="Stretch"
+                                       MinWidth="250"
+                                       ValueChanged="AuthorFontSizeSlider_ValueChanged"/>
+                                <TextBlock x:Name="AuthorFontSizeText" 
+                                          Text="18" 
+                                          Margin="10,0,0,0"
+                                          VerticalAlignment="Center"/>
+                            </StackPanel>
                         </StackPanel>
+                    </GroupBox>
+                </TabItem>
 
-                        <TextBlock Text="刷新间隔（分钟）:" Margin="0,10,0,5"/>
-                        <StackPanel Orientation="Horizontal">
-                            <Slider x:Name="RefreshIntervalSlider"
-                                   Minimum="10"
-                                   Maximum="240"
-                                   Value="60"
-                                   Width="300"
-                                   ValueChanged="RefreshIntervalSlider_ValueChanged"/>
-                            <TextBlock x:Name="RefreshIntervalText" 
-                                      Text="60" 
-                                      Margin="10,0,0,0"
-                                      VerticalAlignment="Center"/>
+                <!-- 系统 -->
+                <TabItem Header="系统">
+                    <GroupBox Header="系统设置" Padding="10" Margin="0,10,0,10">
+                        <StackPanel>
+                            <CheckBox x:Name="AutoStartCheckBox"
+                                     Content="开机自动启动"
+                                     Checked="AutoStartCheckBox_Changed"
+                                     Unchecked="AutoStartCheckBox_Changed"/>
                         </StackPanel>
-                    </StackPanel>
-                </GroupBox>
-
-                <!-- 系统设置 -->
-                <GroupBox Header="系统" Padding="10" Margin="0,0,0,15">
-                    <StackPanel>
-                        <CheckBox x:Name="AutoStartCheckBox"
-                                 Content="开机自动启动"
-                                 Checked="AutoStartCheckBox_Changed"
-                                 Unchecked="AutoStartCheckBox_Changed"/>
-                    </StackPanel>
-                </GroupBox>
-
-                <!-- 按钮 -->
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
-                    <Button Content="应用壁纸" 
-                           Click="SaveButton_Click"
-                           Width="100"
-                           Height="35"
-                           Margin="0,0,10,0"
-                           Background="#FF1E3A8A"
-                           Foreground="White"
-                           FontWeight="Bold"
-                           BorderThickness="0"/>
-                    <Button Content="取消" 
-                           Click="CancelButton_Click"
-                           Width="80"
-                           Height="30"/>
-                </StackPanel>
-            </StackPanel>
+                    </GroupBox>
+                </TabItem>
+            </TabControl>
         </ScrollViewer>
+
+        <!-- 下半部分：操作按钮 -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <Button Content="应用壁纸" 
+                   Click="SaveButton_Click"
+                   Width="100"
+                   Height="35"
+                   Margin="0,0,10,0"
+                   Background="#FF1E3A8A"
+                   Foreground="White"
+                   FontWeight="Bold"
+                   BorderThickness="0"/>
+            <Button Content="取消" 
+                   Click="CancelButton_Click"
+                   Width="80"
+                   Height="30"/>
+        </StackPanel>
     </Grid>
 </Window>
