@@ -36,6 +36,19 @@
                             </StackPanel>
                         </GroupBox>
 
+                        <!-- 壁纸模式 -->
+                        <GroupBox Header="壁纸" Padding="10" Margin="0,0,0,15">
+                            <StackPanel>
+                                <TextBlock Text="壁纸模式:" Margin="0,0,0,5"/>
+                                <ComboBox x:Name="WallpaperModeComboBox"
+                                         Margin="0,0,0,10"
+                                         SelectionChanged="WallpaperModeComboBox_SelectionChanged">
+                                    <ComboBoxItem Content="静态壁纸" Tag="Static"/>
+                                    <ComboBoxItem Content="动态壁纸（实验功能，可能不生效）" Tag="Dynamic"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </GroupBox>
+
                         <!-- 背景设置 -->
                         <GroupBox Header="背景" Padding="10" Margin="0,0,0,15">
                             <StackPanel>
@@ -58,6 +71,13 @@
                                          IsChecked="True"
                                          Checked="EnableWaveCheckBox_Changed"
                                          Unchecked="EnableWaveCheckBox_Changed"/>
+
+                                <TextBlock x:Name="WaveCpuHintText"
+                                           Text="提示：动态壁纸下启用波浪动画会增加 CPU 占用"
+                                           Margin="0,4,0,0"
+                                           FontSize="10"
+                                           Foreground="Gray"
+                                           TextWrapping="Wrap"/>
                             </StackPanel>
                         </GroupBox>
                     </StackPanel>

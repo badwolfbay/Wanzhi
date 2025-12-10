@@ -74,6 +74,14 @@ namespace Wanzhi
                 _ => 2
             };
 
+            // 加载壁纸模式
+            WallpaperModeComboBox.SelectedIndex = _settings.WallpaperMode switch
+            {
+                WallpaperMode.Static => 0,
+                WallpaperMode.Dynamic => 1,
+                _ => 0
+            };
+
             // 加载背景颜色
             _selectedColor = (System.Windows.Media.Color)ColorConverter.ConvertFromString(_settings.BackgroundColor);
             UpdateColorButtonBackground();
@@ -84,6 +92,7 @@ namespace Wanzhi
 
             // 加载动画设置
             EnableWaveCheckBox.IsChecked = _settings.EnableWaveAnimation;
+            UpdateWaveControlsForWallpaperMode();
 
             // 加载诗词设置
             // 选中对应的正文字体
@@ -169,6 +178,42 @@ namespace Wanzhi
                     "System" => ThemeMode.System,
                     _ => ThemeMode.System
                 };
+            }
+        }
+
+        private void WallpaperModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_settings == null) return;
+            if (WallpaperModeComboBox.SelectedItem is ComboBoxItem item && item.Tag != null)
+            {
+                _settings.WallpaperMode = item.Tag.ToString() switch
+                {
+                    "Dynamic" => WallpaperMode.Dynamic,
+                    _ => WallpaperMode.Static
+                };
+                UpdateWaveControlsForWallpaperMode();
+            }
+        }
+
+        /// <summary>
+        /// 根据壁纸模式更新波浪相关控件的可见性/提示。
+        /// </summary>
+        private void UpdateWaveControlsForWallpaperMode()
+        {
+            if (EnableWaveCheckBox == null || WaveCpuHintText == null) return;
+
+            if (_settings.WallpaperMode == WallpaperMode.Dynamic)
+            {
+                // 动态壁纸：允许用户控制是否启用动画，并显示 CPU 提示
+                EnableWaveCheckBox.Visibility = Visibility.Visible;
+                EnableWaveCheckBox.IsEnabled = true;
+                WaveCpuHintText.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                // 静态壁纸：保留波浪颜色设置，但动画对最终壁纸影响不大，避免概念重叠，直接隐藏
+                EnableWaveCheckBox.Visibility = Visibility.Collapsed;
+                WaveCpuHintText.Visibility = Visibility.Collapsed;
             }
         }
 

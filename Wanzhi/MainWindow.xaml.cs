@@ -56,8 +56,8 @@ public partial class MainWindow : Window
         _poetryRefreshTimer.Tick += async (s, e) => 
         {
             await LoadPoetryAsync();
-            // 如果是在后台运行，自动更新壁纸
-            if (Visibility != Visibility.Visible)
+            // 如果是在后台运行且当前为静态壁纸模式，自动更新壁纸
+            if (Visibility != Visibility.Visible && AppSettings.Instance.WallpaperMode == WallpaperMode.Static)
             {
                 await ApplyAsWallpaperAsync(silent: true);
             }
@@ -219,9 +219,12 @@ public partial class MainWindow : Window
             App.Log($"诗词加载成功: {poetry.Content.Substring(0, Math.Min(5, poetry.Content.Length))}...");
             _currentPoetry = poetry;
             UpdatePoetryDisplay(poetry);
-            
-            // 强制保存一次壁纸以验证
-            _ = ApplyAsWallpaperAsync(silent: true); 
+
+            // 静态模式下才自动保存一次壁纸
+            if (AppSettings.Instance.WallpaperMode == WallpaperMode.Static)
+            {
+                _ = ApplyAsWallpaperAsync(silent: true);
+            }
         }
     }
 
@@ -623,9 +626,8 @@ public partial class MainWindow : Window
                 }
                 else
                 {
+                    // 仅停止动画计时器，保留当前波浪形状作为静态背景
                     _animationTimer.Stop();
-                    WaveCanvas.Children.Clear();
-                    _waveRenderer = null; // Clear the renderer instance
                 }
                 break;
 

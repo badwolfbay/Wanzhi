@@ -36,7 +36,15 @@ namespace Wanzhi.Settings
             set { _backgroundColor = value; OnPropertyChanged(); }
         }
 
-        // 启用波浪动画
+        // 壁纸模式（静态图片 / 动态壁纸）
+        private WallpaperMode _wallpaperMode = WallpaperMode.Static;
+        public WallpaperMode WallpaperMode
+        {
+            get => _wallpaperMode;
+            set { _wallpaperMode = value; OnPropertyChanged(); }
+        }
+
+        // 启用波浪动画（在预览窗口或动态模式下生效）
         private bool _enableWaveAnimation = true;
         public bool EnableWaveAnimation
         {
@@ -195,6 +203,22 @@ namespace Wanzhi.Settings
         Light,
         Dark,
         System
+    }
+
+    /// <summary>
+    /// 壁纸模式
+    /// </summary>
+    public enum WallpaperMode
+    {
+        /// <summary>
+        /// 生成静态图片并设置为系统壁纸
+        /// </summary>
+        Static,
+
+        /// <summary>
+        /// 将窗口嵌入桌面作为动态壁纸（后续实现）
+        /// </summary>
+        Dynamic
     }
 
     /// <summary>
