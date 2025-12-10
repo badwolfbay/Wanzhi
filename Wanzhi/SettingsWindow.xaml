@@ -55,10 +55,15 @@
                 <!-- 诗词设置 -->
                 <GroupBox Header="诗词显示" Padding="10" Margin="0,0,0,15">
                     <StackPanel>
-                        <TextBlock Text="诗词字体:" Margin="0,0,0,5"/>
+                        <TextBlock Text="正文字体:" Margin="0,0,0,5"/>
                         <ComboBox x:Name="FontComboBox" 
                                  Margin="0,0,0,10"
                                  SelectionChanged="FontComboBox_SelectionChanged"/>
+
+                        <TextBlock Text="标题与作者字体:" Margin="0,0,0,5"/>
+                        <ComboBox x:Name="AuthorFontComboBox" 
+                                 Margin="0,0,0,10"
+                                 SelectionChanged="AuthorFontComboBox_SelectionChanged"/>
 
                         <TextBlock Text="文字方向:" Margin="0,0,0,5"/>
                         <ComboBox x:Name="OrientationComboBox" 
@@ -66,6 +71,24 @@
                                  SelectionChanged="OrientationComboBox_SelectionChanged">
                             <ComboBoxItem Content="竖排 (默认)" Tag="Vertical"/>
                             <ComboBoxItem Content="横排" Tag="Horizontal"/>
+                        </ComboBox>
+
+                        <TextBlock Text="竖排对齐:" Margin="0,0,0,5"/>
+                        <ComboBox x:Name="VerticalAlignComboBox" 
+                                 Margin="0,0,0,10"
+                                 SelectionChanged="VerticalAlignComboBox_SelectionChanged">
+                            <ComboBoxItem Content="顶部对齐" Tag="Top"/>
+                            <ComboBoxItem Content="居中对齐" Tag="Center"/>
+                            <ComboBoxItem Content="底部对齐" Tag="Bottom"/>
+                        </ComboBox>
+
+                        <TextBlock Text="横排对齐:" Margin="0,0,0,5"/>
+                        <ComboBox x:Name="HorizontalAlignComboBox" 
+                                 Margin="0,0,0,10"
+                                 SelectionChanged="HorizontalAlignComboBox_SelectionChanged">
+                            <ComboBoxItem Content="左对齐" Tag="Left"/>
+                            <ComboBoxItem Content="居中对齐" Tag="Center"/>
+                            <ComboBoxItem Content="右对齐" Tag="Right"/>
                         </ComboBox>
 
                         <TextBlock Text="诗词文字大小:" Margin="0,0,0,5"/>

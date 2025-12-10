@@ -55,6 +55,11 @@ namespace Wanzhi
             foreach (var item in fontItems)
             {
                 FontComboBox.Items.Add(item);
+                AuthorFontComboBox.Items.Add(new ComboBoxItem
+                {
+                    Content = item.Content,
+                    Tag = item.Tag
+                });
             }
         }
 
@@ -81,7 +86,7 @@ namespace Wanzhi
             EnableWaveCheckBox.IsChecked = _settings.EnableWaveAnimation;
 
             // 加载诗词设置
-            // 选中对应的字体
+            // 选中对应的正文字体
             foreach (ComboBoxItem item in FontComboBox.Items)
             {
                 if (item.Tag?.ToString() == _settings.PoetryFontFamily)
@@ -91,8 +96,36 @@ namespace Wanzhi
                 }
             }
 
+            // 选中对应的标题/作者字体
+            foreach (ComboBoxItem item in AuthorFontComboBox.Items)
+            {
+                if (item.Tag?.ToString() == _settings.AuthorFontFamily)
+                {
+                    AuthorFontComboBox.SelectedItem = item;
+                    break;
+                }
+            }
+
             // 加载文字方向
             OrientationComboBox.SelectedIndex = _settings.PoetryOrientation == TextOrientation.Horizontal ? 1 : 0;
+
+            // 加载竖排对齐
+            VerticalAlignComboBox.SelectedIndex = _settings.VerticalPoetryAlignment switch
+            {
+                VerticalTextAlignment.Top => 0,
+                VerticalTextAlignment.Center => 1,
+                VerticalTextAlignment.Bottom => 2,
+                _ => 1
+            };
+
+            // 加载横排对齐
+            HorizontalAlignComboBox.SelectedIndex = _settings.HorizontalPoetryAlignment switch
+            {
+                HorizontalTextAlignment.Left => 0,
+                HorizontalTextAlignment.Center => 1,
+                HorizontalTextAlignment.Right => 2,
+                _ => 1
+            };
 
             PoetryFontSizeSlider.Value = _settings.PoetryFontSize;
             AuthorFontSizeSlider.Value = _settings.AuthorFontSize;
@@ -171,6 +204,15 @@ namespace Wanzhi
             }
         }
 
+        private void AuthorFontComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_settings == null) return;
+            if (AuthorFontComboBox.SelectedItem is ComboBoxItem item && item.Tag != null)
+            {
+                _settings.AuthorFontFamily = item.Tag.ToString();
+            }
+        }
+
         private void OrientationComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_settings == null) return;
@@ -180,6 +222,34 @@ namespace Wanzhi
                 {
                     "Horizontal" => TextOrientation.Horizontal,
                     _ => TextOrientation.Vertical
+                };
+            }
+        }
+
+        private void VerticalAlignComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_settings == null) return;
+            if (VerticalAlignComboBox.SelectedItem is ComboBoxItem item && item.Tag != null)
+            {
+                _settings.VerticalPoetryAlignment = item.Tag.ToString() switch
+                {
+                    "Top" => VerticalTextAlignment.Top,
+                    "Bottom" => VerticalTextAlignment.Bottom,
+                    _ => VerticalTextAlignment.Center
+                };
+            }
+        }
+
+        private void HorizontalAlignComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_settings == null) return;
+            if (HorizontalAlignComboBox.SelectedItem is ComboBoxItem item && item.Tag != null)
+            {
+                _settings.HorizontalPoetryAlignment = item.Tag.ToString() switch
+                {
+                    "Left" => HorizontalTextAlignment.Left,
+                    "Right" => HorizontalTextAlignment.Right,
+                    _ => HorizontalTextAlignment.Center
                 };
             }
         }

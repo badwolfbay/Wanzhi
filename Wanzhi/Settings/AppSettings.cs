@@ -68,12 +68,36 @@ namespace Wanzhi.Settings
             set { _poetryFontFamily = value; OnPropertyChanged(); }
         }
 
+        // 标题与作者字体
+        private string _authorFontFamily = "Microsoft YaHei";
+        public string AuthorFontFamily
+        {
+            get => _authorFontFamily;
+            set { _authorFontFamily = value; OnPropertyChanged(); }
+        }
+
         // 诗词文字方向
         private TextOrientation _poetryOrientation = TextOrientation.Vertical;
         public TextOrientation PoetryOrientation
         {
             get => _poetryOrientation;
             set { _poetryOrientation = value; OnPropertyChanged(); }
+        }
+
+        // 竖排文本对齐方式
+        private VerticalTextAlignment _verticalPoetryAlignment = VerticalTextAlignment.Center;
+        public VerticalTextAlignment VerticalPoetryAlignment
+        {
+            get => _verticalPoetryAlignment;
+            set { _verticalPoetryAlignment = value; OnPropertyChanged(); }
+        }
+
+        // 横排文本对齐方式
+        private HorizontalTextAlignment _horizontalPoetryAlignment = HorizontalTextAlignment.Center;
+        public HorizontalTextAlignment HorizontalPoetryAlignment
+        {
+            get => _horizontalPoetryAlignment;
+            set { _horizontalPoetryAlignment = value; OnPropertyChanged(); }
         }
 
         // 诗词行间距
@@ -180,5 +204,25 @@ namespace Wanzhi.Settings
     {
         Horizontal,
         Vertical
+    }
+
+    /// <summary>
+    /// 竖排文本对齐方式
+    /// </summary>
+    public enum VerticalTextAlignment
+    {
+        Top,
+        Center,
+        Bottom
+    }
+
+    /// <summary>
+    /// 横排文本对齐方式
+    /// </summary>
+    public enum HorizontalTextAlignment
+    {
+        Left,
+        Center,
+        Right
     }
 }

@@ -262,7 +262,7 @@ public partial class MainWindow : Window
             var textColorVal = GetLegibleTextColor(bgColor);
             var textColor = new SolidColorBrush(textColorVal);
             var secondaryTextColor = new SolidColorBrush(textColorVal == Colors.White ? Color.FromRgb(200, 200, 200) : Brushes.Gray.Color);
-            
+
             App.Log($"应用文本颜色: {textColorVal}");
 
             // 根据设置选择渲染模式
@@ -282,8 +282,24 @@ public partial class MainWindow : Window
         // 设置容器为水平排列（每一竖行从右向左）
         PoetryContainer.Orientation = Orientation.Horizontal;
         PoetryContainer.FlowDirection = FlowDirection.RightToLeft;
-        PoetryContainer.VerticalAlignment = VerticalAlignment.Center;
-        
+
+        // 根据设置控制竖排对齐方式（正文列与落款列统一对齐）
+        VerticalAlignment columnAlignment;
+        switch (AppSettings.Instance.VerticalPoetryAlignment)
+        {
+            case VerticalTextAlignment.Top:
+                columnAlignment = VerticalAlignment.Top;
+                break;
+            case VerticalTextAlignment.Bottom:
+                columnAlignment = VerticalAlignment.Bottom;
+                break;
+            default:
+                columnAlignment = VerticalAlignment.Center;
+                break;
+        }
+
+        PoetryContainer.VerticalAlignment = columnAlignment;
+
         // 1. 处理正文 (从右向左排列，第一句在最右)
         var sentences = poetry.Content.Split(new[] { '，', '。', '？', '！', '；', ',', '.', '?', '!', ';' }, StringSplitOptions.RemoveEmptyEntries);
         
@@ -293,7 +309,7 @@ public partial class MainWindow : Window
             { 
                 Orientation = Orientation.Vertical, 
                 Margin = new Thickness(15, 0, 15, 0),
-                VerticalAlignment = VerticalAlignment.Center
+                VerticalAlignment = columnAlignment
             };
 
             foreach (var c in sentence)
@@ -317,7 +333,7 @@ public partial class MainWindow : Window
         { 
             Orientation = Orientation.Vertical, 
             Margin = new Thickness(40, 0, 0, 0), 
-            VerticalAlignment = VerticalAlignment.Bottom 
+            VerticalAlignment = columnAlignment 
         };
 
         // 标题 「标题」 -> ﹁标题﹂
@@ -329,7 +345,7 @@ public partial class MainWindow : Window
             titleStack.Children.Add(new TextBlock { 
                 Text = "﹁", 
                 FontSize = 16, 
-                FontFamily = new FontFamily(AppSettings.Instance.PoetryFontFamily), // 同步字体
+                FontFamily = new FontFamily(AppSettings.Instance.AuthorFontFamily),
                 Foreground = secondaryTextColor,
                 HorizontalAlignment = HorizontalAlignment.Center, 
                 Margin = new Thickness(0, 0, 0, 5) 
@@ -341,7 +357,7 @@ public partial class MainWindow : Window
                 { 
                     Text = c.ToString(), 
                     FontSize = AppSettings.Instance.AuthorFontSize, // 使用作者字体大小
-                    FontFamily = new FontFamily(AppSettings.Instance.PoetryFontFamily), // 同步字体
+                    FontFamily = new FontFamily(AppSettings.Instance.AuthorFontFamily),
                     Foreground = secondaryTextColor,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     Margin = new Thickness(0, 1, 0, 1)
@@ -352,7 +368,7 @@ public partial class MainWindow : Window
             titleStack.Children.Add(new TextBlock { 
                 Text = "﹂", 
                 FontSize = AppSettings.Instance.AuthorFontSize, // 使用作者字体大小
-                FontFamily = new FontFamily(AppSettings.Instance.PoetryFontFamily), // 同步字体
+                FontFamily = new FontFamily(AppSettings.Instance.AuthorFontFamily),
                 Foreground = secondaryTextColor,
                 HorizontalAlignment = HorizontalAlignment.Center, 
                 Margin = new Thickness(0, 5, 0, 0) 
@@ -381,7 +397,7 @@ public partial class MainWindow : Window
                     Text = c.ToString(), 
                     FontSize = Math.Max(10, AppSettings.Instance.AuthorFontSize * 0.8), // 印章字体稍小
                     FontWeight = FontWeights.Bold,
-                    FontFamily = new FontFamily(AppSettings.Instance.PoetryFontFamily), // 同步字体
+                    FontFamily = new FontFamily(AppSettings.Instance.AuthorFontFamily),
                     Foreground = Brushes.White, 
                     HorizontalAlignment = HorizontalAlignment.Center 
                 });
@@ -407,9 +423,22 @@ public partial class MainWindow : Window
         var contentStack = new StackPanel 
         { 
             Orientation = Orientation.Vertical,
-            HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 0, 0, 40)
         };
+
+        // 根据设置控制横排正文的左右对齐
+        switch (AppSettings.Instance.HorizontalPoetryAlignment)
+        {
+            case HorizontalTextAlignment.Left:
+                contentStack.HorizontalAlignment = HorizontalAlignment.Left;
+                break;
+            case HorizontalTextAlignment.Right:
+                contentStack.HorizontalAlignment = HorizontalAlignment.Right;
+                break;
+            default:
+                contentStack.HorizontalAlignment = HorizontalAlignment.Center;
+                break;
+        }
 
         foreach (var sentence in sentences)
         {
@@ -429,10 +458,23 @@ public partial class MainWindow : Window
         var footerStack = new StackPanel 
         { 
             Orientation = Orientation.Horizontal, 
-            HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 0, 0) 
         };
+
+        // 根据设置控制横排落款的左右对齐
+        switch (AppSettings.Instance.HorizontalPoetryAlignment)
+        {
+            case HorizontalTextAlignment.Left:
+                footerStack.HorizontalAlignment = HorizontalAlignment.Left;
+                break;
+            case HorizontalTextAlignment.Right:
+                footerStack.HorizontalAlignment = HorizontalAlignment.Right;
+                break;
+            default:
+                footerStack.HorizontalAlignment = HorizontalAlignment.Center;
+                break;
+        }
 
         // 标题
         if (!string.IsNullOrEmpty(poetry.Origin?.Title))
@@ -441,7 +483,7 @@ public partial class MainWindow : Window
             { 
                 Text = $"「{poetry.Origin.Title}」", 
                 FontSize = AppSettings.Instance.AuthorFontSize * 1.2, // 标题稍大
-                FontFamily = new FontFamily(AppSettings.Instance.PoetryFontFamily),
+                FontFamily = new FontFamily(AppSettings.Instance.AuthorFontFamily),
                 Foreground = secondaryTextColor,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -465,7 +507,7 @@ public partial class MainWindow : Window
                 Text = poetry.Origin.Author, 
                 FontSize = AppSettings.Instance.AuthorFontSize, 
                 FontWeight = FontWeights.Bold,
-                FontFamily = new FontFamily(AppSettings.Instance.PoetryFontFamily),
+                FontFamily = new FontFamily(AppSettings.Instance.AuthorFontFamily),
                 Foreground = Brushes.White, 
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
@@ -594,7 +636,11 @@ public partial class MainWindow : Window
             case nameof(AppSettings.PoetryFontSize):
             case nameof(AppSettings.PoetryFontFamily): // 添加字体监听
             case nameof(AppSettings.AuthorFontSize):
+            case nameof(AppSettings.AuthorFontFamily):
             case nameof(AppSettings.PoetryOrientation):
+            case nameof(AppSettings.VerticalPoetryAlignment):
+            case nameof(AppSettings.HorizontalPoetryAlignment):
+
                 // 重新加载诗词以应用新样式
                 // Since these only affect display, using UpdatePoetryDisplay with current poetry is better/faster
                 // But LoadPoetryAsync is safer if orientation logic changes significantly (though current logic is simple)
