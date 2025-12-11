@@ -600,29 +600,84 @@ public partial class MainWindow : Window
         _poetryRefreshTimer.Start();
     }
 
-    private void Settings_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    private async void Settings_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         switch (e.PropertyName)
         {
+            case nameof(AppSettings.WallpaperMode):
+                // 壁纸模式变化时，重新应用壁纸
+                var settings = AppSettings.Instance;
+                if (settings.WallpaperMode == WallpaperMode.Dynamic)
+                {
+                    // 动态壁纸模式
+                    if (Visibility != Visibility.Visible)
+                    {
+                        Show();
+                    }
+                    
+                    // 尝试将窗口嵌入桌面
+                    bool attached = DesktopHost.Attach(this);
+                    if (!attached)
+                    {
+                        // 如果嵌入失败，回退到静态模式
+                        settings.WallpaperMode = WallpaperMode.Static;
+                        await ApplyAsWallpaperAsync(silent: true);
+                    }
+                    else
+                    {
+                        // 确保动画开启（如果启用）
+                        if (settings.EnableWaveAnimation && _waveRenderer != null)
+                        {
+                            _animationTimer.Start();
+                        }
+                    }
+                }
+                else
+                {
+                    // 静态壁纸模式
+                    // 从桌面宿主中移除窗口
+                    DesktopHost.Detach(this);
+                    
+                    // 隐藏窗口
+                    Hide();
+                    
+                    // 应用为静态壁纸
+                    await ApplyAsWallpaperAsync(silent: true);
+                    
+                    // 停止动画以节省资源
+                    _animationTimer.Stop();
+                }
+                break;
+
             case nameof(AppSettings.Theme):
             case nameof(AppSettings.BackgroundColor):
                 ApplyTheme();
-                // Update text color if background changed
-                if (_currentPoetry != null)
+                // 如果当前是静态壁纸模式，更新壁纸
+                if (_currentPoetry != null && AppSettings.Instance.WallpaperMode == WallpaperMode.Static)
                 {
                     UpdatePoetryDisplay(_currentPoetry);
+                    await ApplyAsWallpaperAsync(silent: true);
                 }
                 break;
 
             case nameof(AppSettings.WaveColor):
                 ApplyTheme();
+                // 如果当前是动态壁纸模式，直接更新显示
+                if (AppSettings.Instance.WallpaperMode == WallpaperMode.Dynamic && _currentPoetry != null)
+                {
+                    UpdatePoetryDisplay(_currentPoetry);
+                }
                 break;
             
             case nameof(AppSettings.EnableWaveAnimation):
                 if (AppSettings.Instance.EnableWaveAnimation)
                 {
                     InitializeWaveRenderer();
-                    _animationTimer.Start();
+                    // 只有在动态壁纸模式下才启动动画
+                    if (AppSettings.Instance.WallpaperMode == WallpaperMode.Dynamic)
+                    {
+                        _animationTimer.Start();
+                    }
                 }
                 else
                 {
@@ -636,25 +691,25 @@ public partial class MainWindow : Window
                 break;
 
             case nameof(AppSettings.PoetryFontSize):
-            case nameof(AppSettings.PoetryFontFamily): // 添加字体监听
+            case nameof(AppSettings.PoetryFontFamily):
             case nameof(AppSettings.AuthorFontSize):
             case nameof(AppSettings.AuthorFontFamily):
             case nameof(AppSettings.PoetryOrientation):
             case nameof(AppSettings.VerticalPoetryAlignment):
             case nameof(AppSettings.HorizontalPoetryAlignment):
-
                 // 重新加载诗词以应用新样式
-                // Since these only affect display, using UpdatePoetryDisplay with current poetry is better/faster
-                // But LoadPoetryAsync is safer if orientation logic changes significantly (though current logic is simple)
-                // Let's stick to LoadPoetryAsync for now as per original code, or optimize
-                // Optimization: if we have current poetry, just redraw.
                 if (_currentPoetry != null) 
                 {
-                     UpdatePoetryDisplay(_currentPoetry);
+                    UpdatePoetryDisplay(_currentPoetry);
+                    // 如果是静态壁纸模式，更新壁纸
+                    if (AppSettings.Instance.WallpaperMode == WallpaperMode.Static)
+                    {
+                        await ApplyAsWallpaperAsync(silent: true);
+                    }
                 }
                 else
                 {
-                     _ = LoadPoetryAsync();
+                    _ = LoadPoetryAsync();
                 }
                 break;
         }
