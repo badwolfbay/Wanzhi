@@ -116,6 +116,22 @@ namespace Wanzhi.Settings
             set { _poetryLineSpacing = value; OnPropertyChanged(); }
         }
 
+        // 诗词横向字符间距
+        private int _poetryCharacterSpacing = 0;
+        public int PoetryCharacterSpacing
+        {
+            get => _poetryCharacterSpacing;
+            set { _poetryCharacterSpacing = value; OnPropertyChanged(); }
+        }
+
+        // 诗词纵向字符间距 (仅适用于竖排)
+        private int _poetryVerticalCharacterSpacing = 2;
+        public int PoetryVerticalCharacterSpacing
+        {
+            get => _poetryVerticalCharacterSpacing;
+            set { _poetryVerticalCharacterSpacing = value; OnPropertyChanged(); }
+        }
+
         // 刷新间隔（分钟）
         private int _refreshIntervalMinutes = 60;
         public int RefreshIntervalMinutes

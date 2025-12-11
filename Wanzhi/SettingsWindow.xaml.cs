@@ -140,6 +140,13 @@ namespace Wanzhi
             AuthorFontSizeSlider.Value = _settings.AuthorFontSize;
             RefreshIntervalSlider.Value = _settings.RefreshIntervalMinutes;
 
+            // 加载字符间距设置
+            PoetryCharacterSpacingSlider.Value = _settings.PoetryCharacterSpacing;
+            PoetryVerticalCharacterSpacingSlider.Value = _settings.PoetryVerticalCharacterSpacing;
+
+            // 根据当前文字方向更新字符间距控件可见性
+            UpdateCharacterSpacingControlsVisibility();
+
             // 加载系统设置
             AutoStartCheckBox.IsChecked = StartupManager.IsStartupEnabled();
         }
@@ -268,6 +275,9 @@ namespace Wanzhi
                     "Horizontal" => TextOrientation.Horizontal,
                     _ => TextOrientation.Vertical
                 };
+                
+                // 更新字符间距控件的可见性
+                UpdateCharacterSpacingControlsVisibility();
             }
         }
 
@@ -321,6 +331,22 @@ namespace Wanzhi
             _settings.AuthorFontSize = value;
         }
 
+        private void PoetryCharacterSpacingSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_settings == null || PoetryCharacterSpacingText == null) return;
+            var value = (int)e.NewValue;
+            PoetryCharacterSpacingText.Text = value.ToString();
+            _settings.PoetryCharacterSpacing = value;
+        }
+
+        private void PoetryVerticalCharacterSpacingSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_settings == null || PoetryVerticalCharacterSpacingText == null) return;
+            var value = (int)e.NewValue;
+            PoetryVerticalCharacterSpacingText.Text = value.ToString();
+            _settings.PoetryVerticalCharacterSpacing = value;
+        }
+
         private void RefreshIntervalSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (_settings == null || RefreshIntervalText == null) return;
@@ -353,6 +379,29 @@ namespace Wanzhi
         private void CancelButton_Click(object sender, RoutedEventArgs e)
         {
             Close();
+        }
+
+        /// <summary>
+        /// 根据文字方向更新字符间距控件的可见性
+        /// </summary>
+        private void UpdateCharacterSpacingControlsVisibility()
+        {
+            if (OrientationComboBox == null || 
+                HorizontalCharacterSpacingPanel == null || 
+                VerticalCharacterSpacingPanel == null)
+                return;
+
+            // 根据当前选择的文字方向显示相应的字符间距设置
+            if (OrientationComboBox.SelectedIndex == 1) // 横排
+            {
+                HorizontalCharacterSpacingPanel.Visibility = Visibility.Visible;
+                VerticalCharacterSpacingPanel.Visibility = Visibility.Collapsed;
+            }
+            else // 竖排
+            {
+                HorizontalCharacterSpacingPanel.Visibility = Visibility.Collapsed;
+                VerticalCharacterSpacingPanel.Visibility = Visibility.Visible;
+            }
         }
     }
 

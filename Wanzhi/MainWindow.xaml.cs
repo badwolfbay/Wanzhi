@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -317,6 +317,12 @@ public partial class MainWindow : Window
 
             foreach (var c in sentence)
             {
+                // 在竖排模式下不显示顿号"、"以获得更好的视觉效果
+                if (c == '、')
+                {
+                    continue;
+                }
+
                 column.Children.Add(new TextBlock 
                 { 
                     Text = c.ToString(), 
@@ -324,7 +330,7 @@ public partial class MainWindow : Window
                     FontFamily = new FontFamily(AppSettings.Instance.PoetryFontFamily), // 使用设置的字体
                     Foreground = textColor, 
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 2, 0, 2)
+                    Margin = new Thickness(0, AppSettings.Instance.PoetryVerticalCharacterSpacing, 0, AppSettings.Instance.PoetryVerticalCharacterSpacing)
                 });
             }
             
@@ -363,7 +369,7 @@ public partial class MainWindow : Window
                     FontFamily = new FontFamily(AppSettings.Instance.AuthorFontFamily),
                     Foreground = secondaryTextColor,
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 1, 0, 1)
+                    Margin = new Thickness(0, 1, 0, 1) // 固定美观间距
                 });
             }
             
@@ -402,7 +408,8 @@ public partial class MainWindow : Window
                     FontWeight = FontWeights.Bold,
                     FontFamily = new FontFamily(AppSettings.Instance.AuthorFontFamily),
                     Foreground = Brushes.White, 
-                    HorizontalAlignment = HorizontalAlignment.Center 
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 1, 0, 1) // 固定美观间距
                 });
             }
             
@@ -445,15 +452,36 @@ public partial class MainWindow : Window
 
         foreach (var sentence in sentences)
         {
-            contentStack.Children.Add(new TextBlock 
-            { 
-                Text = sentence, 
-                FontSize = AppSettings.Instance.PoetryFontSize, 
-                FontFamily = new FontFamily(AppSettings.Instance.PoetryFontFamily),
-                Foreground = textColor, 
+            // 创建一个容器来放置带间距的字符
+            var sentencePanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Margin = new Thickness(0, 0, 0, AppSettings.Instance.PoetryLineSpacing)
-            });
+            };
+
+            // 逐个添加字符并应用字符间距
+            for (int i = 0; i < sentence.Length; i++)
+            {
+                var charTextBlock = new TextBlock
+                {
+                    Text = sentence[i].ToString(),
+                    FontSize = AppSettings.Instance.PoetryFontSize,
+                    FontFamily = new FontFamily(AppSettings.Instance.PoetryFontFamily),
+                    Foreground = textColor,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+
+                // 除了最后一个字符，其他字符右边都加上间距
+                if (i < sentence.Length - 1)
+                {
+                    charTextBlock.Margin = new Thickness(0, 0, AppSettings.Instance.PoetryCharacterSpacing, 0);
+                }
+
+                sentencePanel.Children.Add(charTextBlock);
+            }
+
+            contentStack.Children.Add(sentencePanel);
         }
         PoetryContainer.Children.Add(contentStack);
 
@@ -482,16 +510,37 @@ public partial class MainWindow : Window
         // 标题
         if (!string.IsNullOrEmpty(poetry.Origin?.Title))
         {
-            footerStack.Children.Add(new TextBlock 
-            { 
-                Text = $"「{poetry.Origin.Title}」", 
-                FontSize = AppSettings.Instance.AuthorFontSize * 1.2, // 标题稍大
-                FontFamily = new FontFamily(AppSettings.Instance.AuthorFontFamily),
-                Foreground = secondaryTextColor,
-                HorizontalAlignment = HorizontalAlignment.Center,
+            // 创建一个容器来放置带间距的字符
+            var titlePanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 15, 0)
-            });
+            };
+
+            // 逐个添加字符并应用字符间距
+            var title = $"「{poetry.Origin.Title}」";
+            for (int i = 0; i < title.Length; i++)
+            {
+                var charTextBlock = new TextBlock
+                {
+                    Text = title[i].ToString(),
+                    FontSize = AppSettings.Instance.AuthorFontSize * 1.2, // 标题稍大
+                    FontFamily = new FontFamily(AppSettings.Instance.AuthorFontFamily),
+                    Foreground = secondaryTextColor,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+
+                // 除了最后一个字符，其他字符右边都加上固定间距
+                if (i < title.Length - 1)
+                {
+                    charTextBlock.Margin = new Thickness(0, 0, 1, 0); // 固定美观间距
+                }
+
+                titlePanel.Children.Add(charTextBlock);
+            }
+
+            footerStack.Children.Add(titlePanel);
         }
 
         // 作者 (带红色印章背景)
@@ -505,17 +554,37 @@ public partial class MainWindow : Window
                 VerticalAlignment = VerticalAlignment.Center
             };
             
-            sealBorder.Child = new TextBlock 
-            { 
-                Text = poetry.Origin.Author, 
-                FontSize = AppSettings.Instance.AuthorFontSize, 
-                FontWeight = FontWeights.Bold,
-                FontFamily = new FontFamily(AppSettings.Instance.AuthorFontFamily),
-                Foreground = Brushes.White, 
-                HorizontalAlignment = HorizontalAlignment.Center,
+            // 创建一个容器来放置带间距的字符
+            var authorPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
                 VerticalAlignment = VerticalAlignment.Center
             };
 
+            // 逐个添加字符并应用字符间距
+            var author = poetry.Origin.Author;
+            for (int i = 0; i < author.Length; i++)
+            {
+                var charTextBlock = new TextBlock
+                {
+                    Text = author[i].ToString(),
+                    FontSize = AppSettings.Instance.AuthorFontSize,
+                    FontWeight = FontWeights.Bold,
+                    FontFamily = new FontFamily(AppSettings.Instance.AuthorFontFamily),
+                    Foreground = Brushes.White,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+
+                // 除了最后一个字符，其他字符右边都加上固定间距
+                if (i < author.Length - 1)
+                {
+                    charTextBlock.Margin = new Thickness(0, 0, 1, 0); // 固定美观间距
+                }
+
+                authorPanel.Children.Add(charTextBlock);
+            }
+
+            sealBorder.Child = authorPanel;
             footerStack.Children.Add(sealBorder);
         }
         
@@ -697,6 +766,24 @@ public partial class MainWindow : Window
             case nameof(AppSettings.PoetryOrientation):
             case nameof(AppSettings.VerticalPoetryAlignment):
             case nameof(AppSettings.HorizontalPoetryAlignment):
+                // 重新加载诗词以应用新样式
+                if (_currentPoetry != null) 
+                {
+                    UpdatePoetryDisplay(_currentPoetry);
+                    // 如果是静态壁纸模式，更新壁纸
+                    if (AppSettings.Instance.WallpaperMode == WallpaperMode.Static)
+                    {
+                        await ApplyAsWallpaperAsync(silent: true);
+                    }
+                }
+                else
+                {
+                    _ = LoadPoetryAsync();
+                }
+                break;
+                
+            case nameof(AppSettings.PoetryCharacterSpacing):
+            case nameof(AppSettings.PoetryVerticalCharacterSpacing):
                 // 重新加载诗词以应用新样式
                 if (_currentPoetry != null) 
                 {
