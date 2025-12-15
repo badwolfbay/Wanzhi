@@ -18,6 +18,10 @@ namespace Wanzhi.SystemIntegration
         private const int GWL_STYLE = -16;
         private const int WS_VISIBLE = 0x10000000;
         private const int WS_CHILD = 0x40000000;
+        private const uint SWP_NOSIZE = 0x0001;
+        private const uint SWP_NOMOVE = 0x0002;
+        private const uint SWP_NOACTIVATE = 0x0010;
+        private const uint SWP_SHOWWINDOW = 0x0040;
 
         private const uint WM_SHELLHOOKMESSAGE = 0x052C;
 
@@ -44,6 +48,9 @@ namespace Wanzhi.SystemIntegration
         [DllImport("user32.dll", SetLastError = true)]
         private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
 
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
         /// <summary>
         /// 尝试获取用于承载壁纸的 WorkerW 窗口句柄。
         /// </summary>
@@ -65,7 +72,7 @@ namespace Wanzhi.SystemIntegration
                 // 2. 发送特殊消息，要求创建 WorkerW
                 // 使用 SendMessageTimeout 避免死锁，且通常更可靠
                 IntPtr result = IntPtr.Zero;
-                SendMessageTimeout(progman, WM_SHELLHOOKMESSAGE, IntPtr.Zero, IntPtr.Zero, SMTO_NORMAL, 1000, out result);
+                SendMessageTimeout(progman, WM_SHELLHOOKMESSAGE, new IntPtr(0xD), new IntPtr(0x1), SMTO_NORMAL, 1000, out result);
 
                 // 3. 遍历查找合适的 WorkerW
                 IntPtr worker = IntPtr.Zero;
@@ -93,7 +100,23 @@ namespace Wanzhi.SystemIntegration
 
                 if (host == IntPtr.Zero)
                 {
-                    App.Log("DesktopHost: no suitable WorkerW host found.");
+                    App.Log("DesktopHost: no suitable WorkerW host found. Trying fallback enumeration.");
+                    IntPtr w = IntPtr.Zero;
+                    while ((w = FindWindowEx(IntPtr.Zero, w, "WorkerW", null)) != IntPtr.Zero)
+                    {
+                        var hasDefView = FindWindowEx(w, IntPtr.Zero, "SHELLDLL_DefView", null) != IntPtr.Zero;
+                        if (!hasDefView)
+                        {
+                            host = w;
+                            App.Log($"DesktopHost: fallback selected host = 0x{host.ToInt64():X}");
+                            break;
+                        }
+                    }
+
+                    if (host == IntPtr.Zero)
+                    {
+                        App.Log("DesktopHost: fallback failed, host still not found.");
+                    }
                 }
 
                 return host;
@@ -152,8 +175,9 @@ namespace Wanzhi.SystemIntegration
                 window.Width = SystemParameters.PrimaryScreenWidth;
                 window.Height = SystemParameters.PrimaryScreenHeight;
 
-                // 显示窗口
+                // 显示窗口并确保在父窗口的前景层级
                 ShowWindow(hwnd, SW_SHOW);
+                SetWindowPos(hwnd, IntPtr.Zero, 0, 0, (int)window.Width, (int)window.Height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
 
                 App.Log("DesktopHost.Attach: attach completed.");
 
@@ -182,6 +206,9 @@ namespace Wanzhi.SystemIntegration
                 var hwnd = helper.Handle;
                 // 传入 NULL 作为父窗口句柄，恢复为顶层窗口
                 SetParent(hwnd, IntPtr.Zero);
+                int style = GetWindowLong(hwnd, GWL_STYLE);
+                style &= ~WS_CHILD;
+                SetWindowLong(hwnd, GWL_STYLE, style);
             }
             catch
             {
