@@ -15,13 +15,29 @@ namespace Wanzhi
         private readonly AppSettings _settings;
         private System.Windows.Media.Color _selectedColor;
         private System.Windows.Media.Color _selectedWaveColor;
+        
+        /// <summary>
+        /// 当为 true 时真正关闭窗口，否则只是隐藏
+        /// </summary>
+        public bool CanClose { get; set; } = false;
 
         public SettingsWindow()
         {
             InitializeComponent();
             _settings = AppSettings.Instance;
             LoadFonts();
-            LoadSettings();
+            LoadFonts();
+            RefreshState();
+        }
+
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            if (!CanClose)
+            {
+                e.Cancel = true;
+                Hide();
+            }
+            base.OnClosing(e);
         }
 
         private void LoadFonts()
@@ -63,7 +79,7 @@ namespace Wanzhi
             }
         }
 
-        private void LoadSettings()
+        public void RefreshState()
         {
             // 加载主题设置
             ThemeComboBox.SelectedIndex = _settings.Theme switch

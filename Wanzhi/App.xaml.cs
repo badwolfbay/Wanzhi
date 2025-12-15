@@ -14,6 +14,7 @@ public partial class App : Application
 {
     private static Mutex? _mutex;
     private MainWindow? _mainWindow;
+    private SettingsWindow? _settingsWindow;
     private TaskbarIcon? _trayIcon;
 
     public App()
@@ -85,6 +86,12 @@ public partial class App : Application
 
     private void Exit_Click(object sender, RoutedEventArgs e)
     {
+        // 允许关闭设置窗口
+        if (_settingsWindow != null)
+        {
+            _settingsWindow.CanClose = true;
+            _settingsWindow.Close();
+        }
         Shutdown();
     }
 
@@ -93,24 +100,35 @@ public partial class App : Application
         try
         {
             Log("ShowSettings called.");
-            Log($"MainWindow is null: {_mainWindow == null}");
-            Log($"MainWindow is loaded: {_mainWindow?.IsLoaded}");
             
-            var settingsWindow = new SettingsWindow();
-            Log("SettingsWindow created.");
+            // 如果窗口已存在且已加载，直接激活
+            if (_settingsWindow != null && _settingsWindow.IsLoaded)
+            {
+                Log("SettingsWindow already exists, activating.");
+                _settingsWindow.RefreshState(); // 刷新状态以显示最新设置
+                _settingsWindow.Show();
+                _settingsWindow.Activate();
+                
+                // 如果之前最小化了，还原它
+                if (_settingsWindow.WindowState == WindowState.Minimized)
+                {
+                    _settingsWindow.WindowState = WindowState.Normal;
+                }
+                return;
+            }
+
+            // 否则创建新窗口
+            Log("Creating new SettingsWindow.");
+            _settingsWindow = new SettingsWindow();
             
             if (_mainWindow != null && _mainWindow.IsLoaded)
             {
-                settingsWindow.Owner = _mainWindow;
+                _settingsWindow.Owner = _mainWindow;
                 Log("Set SettingsWindow owner to MainWindow.");
             }
-            else
-            {
-                Log("MainWindow not ready, showing SettingsWindow without owner.");
-            }
             
-            settingsWindow.ShowDialog();
-            Log("SettingsWindow closed.");
+            _settingsWindow.Show();
+            Log("SettingsWindow shown.");
         }
         catch (Exception ex)
         {
