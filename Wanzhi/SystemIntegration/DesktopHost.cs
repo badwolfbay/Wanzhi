@@ -27,8 +27,10 @@ namespace Wanzhi.SystemIntegration
         [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         private static extern IntPtr FindWindowEx(IntPtr hwndParent, IntPtr hwndChildAfter, string? lpszClass, string? lpszWindow);
 
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        private static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam, uint fuFlags, uint uTimeout, out IntPtr lpdwResult);
+
+        private const uint SMTO_NORMAL = 0x0000;
 
         [DllImport("user32.dll", SetLastError = true)]
         private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
@@ -61,24 +63,29 @@ namespace Wanzhi.SystemIntegration
                 }
 
                 // 2. 发送特殊消息，要求创建 WorkerW
-                SendMessage(progman, WM_SHELLHOOKMESSAGE, IntPtr.Zero, IntPtr.Zero);
+                // 使用 SendMessageTimeout 避免死锁，且通常更可靠
+                IntPtr result = IntPtr.Zero;
+                SendMessageTimeout(progman, WM_SHELLHOOKMESSAGE, IntPtr.Zero, IntPtr.Zero, SMTO_NORMAL, 1000, out result);
 
                 // 3. 遍历查找合适的 WorkerW
                 IntPtr worker = IntPtr.Zero;
-                IntPtr defView = IntPtr.Zero;
                 IntPtr host = IntPtr.Zero;
 
+                // 尝试多次查找，防止刚刚创建尚未就绪
+                // 但通常 SendMessage 返回后应当已就绪
+                
                 do
                 {
                     worker = FindWindowEx(IntPtr.Zero, worker, "WorkerW", null);
                     if (worker != IntPtr.Zero)
                     {
-                        defView = FindWindowEx(worker, IntPtr.Zero, "SHELLDLL_DefView", null);
+                        var defView = FindWindowEx(worker, IntPtr.Zero, "SHELLDLL_DefView", null);
                         if (defView != IntPtr.Zero)
                         {
-                            // 找到了包含 SHELLDLL_DefView 的 WorkerW，它的下一个 WorkerW 就是我们的宿主
+                            // 找到了包含 SHELLDLL_DefView 的 WorkerW
+                            // 它的下一个 WorkerW 就是我们的宿主 (Wallpaper Host)
                             host = FindWindowEx(IntPtr.Zero, worker, "WorkerW", null);
-                            App.Log($"DesktopHost: selected WorkerW host = 0x{host.ToInt64():X}");
+                            App.Log($"DesktopHost: found WorkerW with SHELLDLL_DefView (0x{worker.ToInt64():X}), selected host = 0x{host.ToInt64():X}");
                             break;
                         }
                     }
@@ -126,6 +133,12 @@ namespace Wanzhi.SystemIntegration
                 // 设置父窗口为桌面宿主
                 var previousParent = SetParent(hwnd, host);
                 App.Log($"DesktopHost.Attach: SetParent previousParent = 0x{previousParent.ToInt64():X}");
+                
+                // 如果父窗口设置失败，可能是权限或兼容性问题
+                if (previousParent == IntPtr.Zero && Marshal.GetLastWin32Error() != 0)
+                {
+                    App.Log($"DesktopHost.Attach: SetParent failed with error {Marshal.GetLastWin32Error()}");
+                }
 
                 // 设置为子窗口样式
                 int style = GetWindowLong(hwnd, GWL_STYLE);
