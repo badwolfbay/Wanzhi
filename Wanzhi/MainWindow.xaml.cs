@@ -341,9 +341,10 @@ public partial class MainWindow : Window
         var footerColumn = new StackPanel 
         { 
             Orientation = Orientation.Vertical, 
-            Margin = new Thickness(40, 0, 0, 0), 
+            Margin = new Thickness(40, 0, 0, 0),
             VerticalAlignment = columnAlignment 
         };
+        footerColumn.RenderTransform = new TranslateTransform(0, AppSettings.Instance.VerticalPoetryOffset);
 
         // 标题 「标题」 -> ﹁标题﹂
         if (!string.IsNullOrEmpty(poetry.Origin?.Title))
@@ -492,6 +493,7 @@ public partial class MainWindow : Window
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 0, 0) 
         };
+        footerStack.RenderTransform = new TranslateTransform(AppSettings.Instance.HorizontalPoetryOffset, 0);
 
         // 根据设置控制横排落款的左右对齐
         switch (AppSettings.Instance.HorizontalPoetryAlignment)
@@ -784,6 +786,8 @@ public partial class MainWindow : Window
                 
             case nameof(AppSettings.PoetryCharacterSpacing):
             case nameof(AppSettings.PoetryVerticalCharacterSpacing):
+            case nameof(AppSettings.VerticalPoetryOffset):
+            case nameof(AppSettings.HorizontalPoetryOffset):
                 // 重新加载诗词以应用新样式
                 if (_currentPoetry != null) 
                 {

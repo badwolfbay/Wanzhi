@@ -160,6 +160,12 @@ namespace Wanzhi
             PoetryCharacterSpacingSlider.Value = _settings.PoetryCharacterSpacing;
             PoetryVerticalCharacterSpacingSlider.Value = _settings.PoetryVerticalCharacterSpacing;
 
+            // 加载落款偏移
+            VerticalPoetryOffsetSlider.Value = _settings.VerticalPoetryOffset;
+            VerticalPoetryOffsetText.Text = _settings.VerticalPoetryOffset.ToString();
+            HorizontalPoetryOffsetSlider.Value = _settings.HorizontalPoetryOffset;
+            HorizontalPoetryOffsetText.Text = _settings.HorizontalPoetryOffset.ToString();
+
             // 根据当前文字方向更新字符间距控件可见性
             UpdateCharacterSpacingControlsVisibility();
 
@@ -371,6 +377,22 @@ namespace Wanzhi
             _settings.RefreshIntervalMinutes = value;
         }
 
+        private void VerticalPoetryOffsetSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_settings == null || VerticalPoetryOffsetText == null) return;
+            var value = (int)e.NewValue;
+            VerticalPoetryOffsetText.Text = value.ToString();
+            _settings.VerticalPoetryOffset = value;
+        }
+
+        private void HorizontalPoetryOffsetSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_settings == null || HorizontalPoetryOffsetText == null) return;
+            var value = (int)e.NewValue;
+            HorizontalPoetryOffsetText.Text = value.ToString();
+            _settings.HorizontalPoetryOffset = value;
+        }
+
         private void AutoStartCheckBox_Changed(object sender, RoutedEventArgs e)
         {
             var enabled = AutoStartCheckBox.IsChecked ?? false;
@@ -408,7 +430,8 @@ namespace Wanzhi
                 return;
 
             // 根据当前选择的文字方向显示相应的字符间距设置
-            if (OrientationComboBox.SelectedIndex == 1) // 横排
+            bool isHorizontal = OrientationComboBox.SelectedIndex == 1; // 横排
+            if (isHorizontal)
             {
                 HorizontalCharacterSpacingPanel.Visibility = Visibility.Visible;
                 VerticalCharacterSpacingPanel.Visibility = Visibility.Collapsed;
@@ -418,6 +441,15 @@ namespace Wanzhi
                 HorizontalCharacterSpacingPanel.Visibility = Visibility.Collapsed;
                 VerticalCharacterSpacingPanel.Visibility = Visibility.Visible;
             }
+
+            // 同步更新落款偏移量控件的可见性
+            if (HorizontalPoetryOffsetLabel != null) HorizontalPoetryOffsetLabel.Visibility = isHorizontal ? Visibility.Visible : Visibility.Collapsed;
+            if (HorizontalPoetryOffsetSlider != null) HorizontalPoetryOffsetSlider.Visibility = isHorizontal ? Visibility.Visible : Visibility.Collapsed;
+            if (HorizontalPoetryOffsetText != null) HorizontalPoetryOffsetText.Visibility = isHorizontal ? Visibility.Visible : Visibility.Collapsed;
+
+            if (VerticalPoetryOffsetLabel != null) VerticalPoetryOffsetLabel.Visibility = isHorizontal ? Visibility.Collapsed : Visibility.Visible;
+            if (VerticalPoetryOffsetSlider != null) VerticalPoetryOffsetSlider.Visibility = isHorizontal ? Visibility.Collapsed : Visibility.Visible;
+            if (VerticalPoetryOffsetText != null) VerticalPoetryOffsetText.Visibility = isHorizontal ? Visibility.Collapsed : Visibility.Visible;
         }
     }
 

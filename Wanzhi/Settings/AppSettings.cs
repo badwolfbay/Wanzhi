@@ -132,6 +132,20 @@ namespace Wanzhi.Settings
             set { _poetryVerticalCharacterSpacing = value; OnPropertyChanged(); }
         }
 
+        private int _verticalPoetryOffset = 0;
+        public int VerticalPoetryOffset
+        {
+            get => _verticalPoetryOffset;
+            set { _verticalPoetryOffset = value; OnPropertyChanged(); }
+        }
+
+        private int _horizontalPoetryOffset = 0;
+        public int HorizontalPoetryOffset
+        {
+            get => _horizontalPoetryOffset;
+            set { _horizontalPoetryOffset = value; OnPropertyChanged(); }
+        }
+
         // 刷新间隔（分钟）
         private int _refreshIntervalMinutes = 60;
         public int RefreshIntervalMinutes
