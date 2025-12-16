@@ -89,8 +89,8 @@ public partial class MainWindow : Window
         // 加载诗词（后台异步，不阻塞启动）
         _ = LoadPoetryAsync();
 
-        // 启动动画
-        if (AppSettings.Instance.EnableWaveAnimation)
+        // 启动动画（仅动态壁纸模式）
+        if (AppSettings.Instance.EnableWaveAnimation && AppSettings.Instance.WallpaperMode == WallpaperMode.Dynamic)
         {
             _animationTimer.Start();
         }
