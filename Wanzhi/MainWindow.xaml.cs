@@ -883,7 +883,8 @@ public partial class MainWindow : Window
 
                         try
                         {
-                            WaveCanvas.Width = logicalWidth;
+                            WaveCanvas.ClearValue(FrameworkElement.WidthProperty);
+                            WaveCanvas.HorizontalAlignment = HorizontalAlignment.Stretch;
                             if (_waveRenderer != null)
                             {
                                 _waveRenderer.SetCanvasSize(logicalWidth, WaveCanvas.Height);
