@@ -24,13 +24,17 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore Wanzhi/Wanzhi.csproj
       
-    - name: Build Release
-      run: dotnet publish Wanzhi/Wanzhi.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
+    - name: Build Portable (Framework-Dependent)
+      run: dotnet publish Wanzhi/Wanzhi.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish_framework
+
+    - name: Build Portable (Self-Contained)
+      run: dotnet publish Wanzhi/Wanzhi.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish_selfcontained
       
-    - name: Create portable package
+    - name: Create portable packages
       run: |
         $version = "${{ github.ref_name }}"
-        Compress-Archive -Path publish\* -DestinationPath "Wanzhi_${version}_Portable.zip"
+        Compress-Archive -Path publish_framework\* -DestinationPath "Wanzhi_${version}_Portable_NoRuntime.zip"
+        Compress-Archive -Path publish_selfcontained\* -DestinationPath "Wanzhi_${version}_Portable_WithRuntime.zip"
       shell: pwsh
       
     - name: Install Inno Setup
@@ -75,10 +79,11 @@ jobs:
           - 自动配置，一键安装
           
           ### 便携版
-          - **文件**: `Wanzhi_${{ github.ref_name }}_Portable.zip`
-          - 解压即用，无需安装
-          
-          **系统要求**: Windows 10/11 (64-bit) + [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
+          - **不带运行库**: `Wanzhi_${{ github.ref_name }}_Portable_NoRuntime.zip`
+            - 体积更小
+            - 需要安装 [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
+          - **包含运行库**: `Wanzhi_${{ github.ref_name }}_Portable_WithRuntime.zip`
+            - 解压即用，无需额外安装运行库
           
           ## ✨ 主要特性
           
@@ -104,7 +109,8 @@ jobs:
           
           完整文档: [README.md](https://github.com/${{ github.repository }}/blob/main/README.md)
         files: |
-          Wanzhi_${{ github.ref_name }}_Portable.zip
+          Wanzhi_${{ github.ref_name }}_Portable_NoRuntime.zip
+          Wanzhi_${{ github.ref_name }}_Portable_WithRuntime.zip
           WanzhiSetup_*.exe
         draft: false
         prerelease: false
