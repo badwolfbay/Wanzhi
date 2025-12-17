@@ -818,6 +818,92 @@ public partial class MainWindow : Window
         
         try
         {
+            var desktopWallpaper = new DesktopWallpaperManager();
+            App.Log($"Multi-monitor detected: count={desktopWallpaper.MonitorCount}");
+            if (desktopWallpaper.MonitorCount > 1)
+            {
+                desktopWallpaper.SetPosition(DesktopWallpaperManager.DESKTOP_WALLPAPER_POSITION.Fill);
+
+                if (Content is not FrameworkElement rootElement)
+                {
+                    throw new Exception("无法获取窗口内容进行渲染");
+                }
+
+                var appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Wanzhi");
+                Directory.CreateDirectory(appDataPath);
+                App.Log($"Multi-monitor wallpaper output dir: {appDataPath}");
+
+                var originalWidth = rootElement.Width;
+                var originalHeight = rootElement.Height;
+
+                try
+                {
+                    for (uint i = 0; i < desktopWallpaper.MonitorCount; i++)
+                    {
+                        var monitorId = desktopWallpaper.GetMonitorDevicePathAt(i);
+                        var rect = desktopWallpaper.GetMonitorRect(monitorId);
+                        var (scaleX, scaleY) = desktopWallpaper.GetMonitorDpiScale(monitorId);
+
+                        App.Log($"Monitor[{i}]: id={monitorId}, rect={rect.Left},{rect.Top},{rect.Right},{rect.Bottom}, px={rect.Width}x{rect.Height}, scale={scaleX:F2}x{scaleY:F2}");
+
+                        var pixelWidth = rect.Width;
+                        var pixelHeight = rect.Height;
+                        if (pixelWidth <= 0 || pixelHeight <= 0)
+                        {
+                            continue;
+                        }
+
+                        rootElement.Width = rect.Width / scaleX;
+                        rootElement.Height = rect.Height / scaleY;
+                        rootElement.Measure(new Size(rect.Width / scaleX, rect.Height / scaleY));
+                        rootElement.Arrange(new Rect(0, 0, rect.Width / scaleX, rect.Height / scaleY));
+                        rootElement.UpdateLayout();
+
+                        var renderBitmap = new RenderTargetBitmap(
+                            pixelWidth,
+                            pixelHeight,
+                            96.0 * scaleX,
+                            96.0 * scaleY,
+                            PixelFormats.Pbgra32);
+
+                        renderBitmap.Render(rootElement);
+
+                        var wallpaperPath = Path.Combine(appDataPath, $"wallpaper_{i}.png");
+                        using (var fileStream = new FileStream(wallpaperPath, FileMode.Create))
+                        {
+                            var encoder = new PngBitmapEncoder();
+                            encoder.Frames.Add(BitmapFrame.Create(renderBitmap));
+                            encoder.Save(fileStream);
+                        }
+
+                        App.Log($"Set monitor wallpaper: index={i}, path={wallpaperPath}");
+
+                        desktopWallpaper.SetWallpaper(monitorId, wallpaperPath);
+                    }
+                }
+                finally
+                {
+                    rootElement.Width = originalWidth;
+                    rootElement.Height = originalHeight;
+                    rootElement.UpdateLayout();
+                }
+
+                App.Log("Multi-monitor wallpaper applied successfully");
+                if (!silent)
+                {
+                    MessageBox.Show("壁纸设置成功！\n\n已为多屏分别生成图片并设置为系统桌面壁纸。", "万枝", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            App.Log($"多屏壁纸设置失败，回退单屏逻辑: {ex}");
+        }
+        
+        try
+        {
             // 1. 获取屏幕逻辑尺寸
             var width = SystemParameters.PrimaryScreenWidth;
             var height = SystemParameters.PrimaryScreenHeight;
