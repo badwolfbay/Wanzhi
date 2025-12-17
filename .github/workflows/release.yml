@@ -25,13 +25,13 @@ jobs:
       run: dotnet restore Wanzhi/Wanzhi.csproj
       
     - name: Build Portable (Framework-Dependent)
-      run: dotnet publish Wanzhi/Wanzhi.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o publish_framework
+      run: dotnet publish Wanzhi/Wanzhi.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:IncludeAllContentForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false -o publish_framework
 
     - name: Build Portable (Self-Contained)
       run: dotnet publish Wanzhi/Wanzhi.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -p:DebugType=None -p:DebugSymbols=false -o publish_selfcontained
 
     - name: Build Installer Payload
-      run: dotnet publish Wanzhi/Wanzhi.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o publish
+      run: dotnet publish Wanzhi/Wanzhi.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:IncludeAllContentForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false -o publish
       
     - name: Create portable packages
       run: |
