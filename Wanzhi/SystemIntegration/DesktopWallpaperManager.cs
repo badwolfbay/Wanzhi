@@ -25,21 +25,47 @@ namespace Wanzhi.SystemIntegration
             return rect;
         }
 
+        public (int Width, int Height) GetMonitorPixelSize(string monitorId)
+        {
+            try
+            {
+                var mode = new DEVMODE();
+                mode.dmSize = (ushort)Marshal.SizeOf(typeof(DEVMODE));
+                if (EnumDisplaySettings(monitorId, ENUM_CURRENT_SETTINGS, ref mode))
+                {
+                    if (mode.dmPelsWidth > 0 && mode.dmPelsHeight > 0)
+                    {
+                        return ((int)mode.dmPelsWidth, (int)mode.dmPelsHeight);
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            var rect = GetMonitorRect(monitorId);
+            return (rect.Width, rect.Height);
+        }
+
         public (double ScaleX, double ScaleY) GetMonitorDpiScale(string monitorId)
         {
-            var rect = GetMonitorRect(monitorId);
-            var nativeRect = new NativeRect
-            {
-                Left = rect.Left,
-                Top = rect.Top,
-                Right = rect.Right,
-                Bottom = rect.Bottom
-            };
-
-            var hmonitor = MonitorFromRect(ref nativeRect, MONITOR_DEFAULTTONEAREST);
+            var hmonitor = TryGetHMonitorByDeviceName(monitorId);
             if (hmonitor == IntPtr.Zero)
             {
-                return (1.0, 1.0);
+                var rect = GetMonitorRect(monitorId);
+                var nativeRect = new NativeRect
+                {
+                    Left = rect.Left,
+                    Top = rect.Top,
+                    Right = rect.Right,
+                    Bottom = rect.Bottom
+                };
+
+                hmonitor = MonitorFromRect(ref nativeRect, MONITOR_DEFAULTTONEAREST);
+                if (hmonitor == IntPtr.Zero)
+                {
+                    return (1.0, 1.0);
+                }
             }
 
             try
@@ -132,6 +158,7 @@ namespace Wanzhi.SystemIntegration
         }
 
         private const uint MONITOR_DEFAULTTONEAREST = 2;
+        private const int ENUM_CURRENT_SETTINGS = -1;
 
         [StructLayout(LayoutKind.Sequential)]
         private struct NativeRect
@@ -140,6 +167,85 @@ namespace Wanzhi.SystemIntegration
             public int Top;
             public int Right;
             public int Bottom;
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct DEVMODE
+        {
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+            public string dmDeviceName;
+            public ushort dmSpecVersion;
+            public ushort dmDriverVersion;
+            public ushort dmSize;
+            public ushort dmDriverExtra;
+            public uint dmFields;
+            public int dmPositionX;
+            public int dmPositionY;
+            public uint dmDisplayOrientation;
+            public uint dmDisplayFixedOutput;
+            public short dmColor;
+            public short dmDuplex;
+            public short dmYResolution;
+            public short dmTTOption;
+            public short dmCollate;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+            public string dmFormName;
+            public ushort dmLogPixels;
+            public uint dmBitsPerPel;
+            public uint dmPelsWidth;
+            public uint dmPelsHeight;
+            public uint dmDisplayFlags;
+            public uint dmDisplayFrequency;
+            public uint dmICMMethod;
+            public uint dmICMIntent;
+            public uint dmMediaType;
+            public uint dmDitherType;
+            public uint dmReserved1;
+            public uint dmReserved2;
+            public uint dmPanningWidth;
+            public uint dmPanningHeight;
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct MONITORINFOEX
+        {
+            public uint cbSize;
+            public NativeRect rcMonitor;
+            public NativeRect rcWork;
+            public uint dwFlags;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+            public string szDevice;
+        }
+
+        private delegate bool MonitorEnumProc(IntPtr hMonitor, IntPtr hdcMonitor, ref NativeRect lprcMonitor, IntPtr dwData);
+
+        private IntPtr TryGetHMonitorByDeviceName(string deviceName)
+        {
+            IntPtr found = IntPtr.Zero;
+            try
+            {
+                EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (IntPtr hMonitor, IntPtr hdcMonitor, ref NativeRect lprcMonitor, IntPtr dwData) =>
+                {
+                    var mi = new MONITORINFOEX();
+                    mi.cbSize = (uint)Marshal.SizeOf(typeof(MONITORINFOEX));
+                    if (GetMonitorInfo(hMonitor, ref mi))
+                    {
+                        if (string.Equals(mi.szDevice, deviceName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            found = hMonitor;
+                            return false;
+                        }
+                    }
+
+                    return true;
+                }, IntPtr.Zero);
+            }
+            catch
+            {
+                return IntPtr.Zero;
+            }
+
+            return found;
         }
 
         private enum MonitorDpiType
@@ -152,6 +258,15 @@ namespace Wanzhi.SystemIntegration
 
         [DllImport("user32.dll")]
         private static extern IntPtr MonitorFromRect([In] ref NativeRect lprc, uint dwFlags);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern bool EnumDisplaySettings(string lpszDeviceName, int iModeNum, ref DEVMODE lpDevMode);
+
+        [DllImport("user32.dll")]
+        private static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr lprcClip, MonitorEnumProc lpfnEnum, IntPtr dwData);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFOEX lpmi);
 
         [DllImport("Shcore.dll")]
         private static extern int GetDpiForMonitor(IntPtr hmonitor, MonitorDpiType dpiType, out uint dpiX, out uint dpiY);

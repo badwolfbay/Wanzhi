@@ -860,21 +860,25 @@ public partial class MainWindow : Window
                     {
                         var monitorId = desktopWallpaper.GetMonitorDevicePathAt(i);
                         var rect = desktopWallpaper.GetMonitorRect(monitorId);
+                        var (monitorPixelWidth, monitorPixelHeight) = desktopWallpaper.GetMonitorPixelSize(monitorId);
                         var (scaleX, scaleY) = desktopWallpaper.GetMonitorDpiScale(monitorId);
 
-                        App.Log($"Monitor[{i}]: id={monitorId}, rect={rect.Left},{rect.Top},{rect.Right},{rect.Bottom}, px={rect.Width}x{rect.Height}, scale={scaleX:F2}x{scaleY:F2}");
+                        App.Log($"Monitor[{i}]: id={monitorId}, rect={rect.Left},{rect.Top},{rect.Right},{rect.Bottom}, rectPx={rect.Width}x{rect.Height}, modePx={monitorPixelWidth}x{monitorPixelHeight}, scale={scaleX:F2}x{scaleY:F2}");
 
-                        var pixelWidth = rect.Width;
-                        var pixelHeight = rect.Height;
+                        var pixelWidth = monitorPixelWidth;
+                        var pixelHeight = monitorPixelHeight;
                         if (pixelWidth <= 0 || pixelHeight <= 0)
                         {
                             continue;
                         }
 
-                        rootElement.Width = rect.Width / scaleX;
-                        rootElement.Height = rect.Height / scaleY;
-                        rootElement.Measure(new Size(rect.Width / scaleX, rect.Height / scaleY));
-                        rootElement.Arrange(new Rect(0, 0, rect.Width / scaleX, rect.Height / scaleY));
+                        var logicalWidth = pixelWidth / Math.Max(scaleX, 0.01);
+                        var logicalHeight = pixelHeight / Math.Max(scaleY, 0.01);
+
+                        rootElement.Width = logicalWidth;
+                        rootElement.Height = logicalHeight;
+                        rootElement.Measure(new Size(logicalWidth, logicalHeight));
+                        rootElement.Arrange(new Rect(0, 0, logicalWidth, logicalHeight));
                         rootElement.UpdateLayout();
 
                         var renderBitmap = new RenderTargetBitmap(
@@ -895,7 +899,6 @@ public partial class MainWindow : Window
                         }
 
                         App.Log($"Set monitor wallpaper: index={i}, path={wallpaperPath}");
-
                         desktopWallpaper.SetWallpaper(monitorId, wallpaperPath);
                     }
                 }
