@@ -12,8 +12,8 @@ namespace Wanzhi.Rendering
     {
         private readonly Path[] _wavePaths;
         private double _animationOffset = 0;
-        private readonly double _canvasWidth;
-        private readonly double _canvasHeight;
+        private double _canvasWidth;
+        private double _canvasHeight;
 
         public WaveRenderer(double width, double height, int waveCount = 5)
         {
@@ -43,6 +43,21 @@ namespace Wanzhi.Rendering
         }
 
         public Path[] GetWavePaths() => _wavePaths;
+
+        public void SetCanvasSize(double width, double height)
+        {
+            if (double.IsNaN(width) || double.IsInfinity(width) || width <= 0) return;
+            if (double.IsNaN(height) || double.IsInfinity(height) || height <= 0) return;
+
+            if (Math.Abs(_canvasWidth - width) < 0.01 && Math.Abs(_canvasHeight - height) < 0.01)
+            {
+                return;
+            }
+
+            _canvasWidth = width;
+            _canvasHeight = height;
+            Update(0);
+        }
 
         /// <summary>
         /// 更新波浪颜色 - 上浅下深渐变

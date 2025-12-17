@@ -881,6 +881,19 @@ public partial class MainWindow : Window
                         rootElement.Arrange(new Rect(0, 0, logicalWidth, logicalHeight));
                         rootElement.UpdateLayout();
 
+                        try
+                        {
+                            WaveCanvas.Width = logicalWidth;
+                            if (_waveRenderer != null)
+                            {
+                                _waveRenderer.SetCanvasSize(logicalWidth, WaveCanvas.Height);
+                                _waveRenderer.Update(0);
+                            }
+                        }
+                        catch
+                        {
+                        }
+
                         var renderBitmap = new RenderTargetBitmap(
                             pixelWidth,
                             pixelHeight,
