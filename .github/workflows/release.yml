@@ -29,6 +29,9 @@ jobs:
 
     - name: Build Portable (Self-Contained)
       run: dotnet publish Wanzhi/Wanzhi.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish_selfcontained
+
+    - name: Build Installer Payload
+      run: dotnet publish Wanzhi/Wanzhi.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
       
     - name: Create portable packages
       run: |
