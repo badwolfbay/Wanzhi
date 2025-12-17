@@ -77,8 +77,17 @@ namespace Wanzhi
                 // 统一标题引号的样式尺寸，保证上下符号一致
                 if (tb.Text == "﹁" || tb.Text == "﹂")
                 {
-                    tb.FontSize = Wanzhi.Settings.AppSettings.Instance.AuthorFontSize;
-                    tb.FontFamily = new System.Windows.Media.FontFamily(Wanzhi.Settings.AppSettings.Instance.AuthorFontFamily);
+                    var targetSize = Wanzhi.Settings.AppSettings.Instance.AuthorFontSize;
+                    if (Math.Abs(tb.FontSize - targetSize) > 0.01)
+                    {
+                        tb.FontSize = targetSize;
+                    }
+
+                    var targetFamilyName = Wanzhi.Settings.AppSettings.Instance.AuthorFontFamily;
+                    if (tb.FontFamily == null || !string.Equals(tb.FontFamily.Source, targetFamilyName, StringComparison.Ordinal))
+                    {
+                        tb.FontFamily = new System.Windows.Media.FontFamily(targetFamilyName);
+                    }
                 }
                 return;
             }

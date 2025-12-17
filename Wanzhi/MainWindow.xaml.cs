@@ -24,10 +24,19 @@ public partial class MainWindow : Window
     private WaveRenderer? _waveRenderer;
     private readonly DispatcherTimer _animationTimer;
     private readonly DispatcherTimer _poetryRefreshTimer;
+    private readonly DispatcherTimer _diagTimer;
     private readonly ThemeDetector _themeDetector;
     private DateTime _lastAnimationTime;
     private bool _isDarkTheme;
     private bool _startupPoetryRetryScheduled;
+
+    private long _diagAnimationTicks;
+    private long _diagPoetryRefreshTicks;
+    private long _diagSettingsChanged;
+    private long _diagLoadPoetryCalls;
+    private long _diagUpdatePoetryUiCalls;
+    private long _diagApplyThemeCalls;
+    private long _diagApplyWallpaperCalls;
 
     // Windows API for setting wallpaper
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
@@ -54,15 +63,29 @@ public partial class MainWindow : Window
 
         // 初始化诗词刷新定时器
         _poetryRefreshTimer = new DispatcherTimer();
-        _poetryRefreshTimer.Tick += async (s, e) => 
+        _poetryRefreshTimer.Tick += async (s, e) =>
         {
+            System.Threading.Interlocked.Increment(ref _diagPoetryRefreshTicks);
             await LoadPoetryAsync();
-            // 如果是在后台运行且当前为静态壁纸模式，自动更新壁纸
-            if (Visibility != Visibility.Visible && AppSettings.Instance.WallpaperMode == WallpaperMode.Static)
-            {
-                await ApplyAsWallpaperAsync(silent: true);
-            }
         };
+
+        _diagTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(5)
+        };
+        _diagTimer.Tick += (s, e) =>
+        {
+            var anim = System.Threading.Interlocked.Exchange(ref _diagAnimationTicks, 0);
+            var poetryTick = System.Threading.Interlocked.Exchange(ref _diagPoetryRefreshTicks, 0);
+            var settings = System.Threading.Interlocked.Exchange(ref _diagSettingsChanged, 0);
+            var load = System.Threading.Interlocked.Exchange(ref _diagLoadPoetryCalls, 0);
+            var ui = System.Threading.Interlocked.Exchange(ref _diagUpdatePoetryUiCalls, 0);
+            var theme = System.Threading.Interlocked.Exchange(ref _diagApplyThemeCalls, 0);
+            var applyWp = System.Threading.Interlocked.Exchange(ref _diagApplyWallpaperCalls, 0);
+
+            App.Log($"CPU diag (5s): Visible={Visibility}, IsVisible={IsVisible}, WindowState={WindowState}, Mode={AppSettings.Instance.WallpaperMode}, EnableWaveAnim={AppSettings.Instance.EnableWaveAnimation}, animTick={anim}, poetryTimerTick={poetryTick}, settingsChanged={settings}, loadPoetry={load}, updatePoetryUI={ui}, applyTheme={theme}, applyWallpaper={applyWp}");
+        };
+        _diagTimer.Start();
 
         // 监听设置变化
         AppSettings.Instance.PropertyChanged += Settings_PropertyChanged;
@@ -81,10 +104,18 @@ public partial class MainWindow : Window
         // 应用当前主题
         ApplyTheme();
 
-        // 初始化波浪渲染器
-        if (AppSettings.Instance.EnableWaveAnimation)
+        if (AppSettings.Instance.WallpaperMode == WallpaperMode.Dynamic)
         {
-            InitializeWaveRenderer();
+            // 动态模式下才初始化波浪渲染器
+            if (AppSettings.Instance.EnableWaveAnimation)
+            {
+                InitializeWaveRenderer();
+            }
+        }
+        else
+        {
+            // 静态模式空闲时隐藏波浪层，避免渲染线程持续工作
+            WaveCanvas.Visibility = Visibility.Collapsed;
         }
 
         // 加载诗词（后台异步，不阻塞启动）
@@ -135,6 +166,7 @@ public partial class MainWindow : Window
     {
         _animationTimer.Stop();
         _poetryRefreshTimer.Stop();
+        _diagTimer.Stop();
     }
 
     private void InitializeWaveRenderer()
@@ -163,6 +195,13 @@ public partial class MainWindow : Window
 
     private void AnimationTimer_Tick(object? sender, EventArgs e)
     {
+        System.Threading.Interlocked.Increment(ref _diagAnimationTicks);
+        if (AppSettings.Instance.WallpaperMode != WallpaperMode.Dynamic || Visibility != Visibility.Visible)
+        {
+            _animationTimer.Stop();
+            return;
+        }
+
         if (_waveRenderer == null) return;
 
         var now = DateTime.Now;
@@ -188,6 +227,7 @@ public partial class MainWindow : Window
 
     private async System.Threading.Tasks.Task LoadPoetryAsync()
     {
+        System.Threading.Interlocked.Increment(ref _diagLoadPoetryCalls);
         PoetryData? poetry = null;
         try
         {
@@ -237,12 +277,6 @@ public partial class MainWindow : Window
             App.Log($"诗词加载成功: {poetry.Content.Substring(0, Math.Min(5, poetry.Content.Length))}...");
             _currentPoetry = poetry;
             UpdatePoetryDisplay(poetry);
-
-            // 静态模式下才自动保存一次壁纸
-            if (AppSettings.Instance.WallpaperMode == WallpaperMode.Static)
-            {
-                _ = ApplyAsWallpaperAsync(silent: true);
-            }
         }
     }
 
@@ -260,6 +294,7 @@ public partial class MainWindow : Window
 
     private void UpdatePoetryDisplay(PoetryData poetry)
     {
+        System.Threading.Interlocked.Increment(ref _diagUpdatePoetryUiCalls);
         Dispatcher.Invoke(() =>
         {
             PoetryContainer.Children.Clear();
@@ -613,6 +648,7 @@ public partial class MainWindow : Window
 
     private void ApplyTheme()
     {
+        System.Threading.Interlocked.Increment(ref _diagApplyThemeCalls);
         var settings = AppSettings.Instance;
         Color bgColor;
         
@@ -685,12 +721,19 @@ public partial class MainWindow : Window
     private void UpdateRefreshInterval()
     {
         var interval = AppSettings.Instance.RefreshIntervalMinutes;
-        _poetryRefreshTimer.Interval = TimeSpan.FromMinutes(interval);
+        if (interval <= 0)
+        {
+            _poetryRefreshTimer.Stop();
+            return;
+        }
+
+        _poetryRefreshTimer.Interval = TimeSpan.FromMinutes(Math.Max(1, interval));
         _poetryRefreshTimer.Start();
     }
 
     private async void Settings_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        System.Threading.Interlocked.Increment(ref _diagSettingsChanged);
         switch (e.PropertyName)
         {
             case nameof(AppSettings.WallpaperMode):
@@ -826,6 +869,7 @@ public partial class MainWindow : Window
     /// </summary>
     public async System.Threading.Tasks.Task ApplyAsWallpaperAsync(bool silent = false)
     {
+        System.Threading.Interlocked.Increment(ref _diagApplyWallpaperCalls);
         App.Log("ApplyAsWallpaper called (Static Image Mode).");
         
         // 确保诗词已加载
@@ -833,9 +877,20 @@ public partial class MainWindow : Window
         {
             return;
         }
-        
+
+        var prevWaveVisibility = WaveCanvas.Visibility;
         try
         {
+            // 仅在需要渲染波浪层时临时打开，避免在静态模式下让透明全屏窗口持续参与渲染管线
+            if (AppSettings.Instance.EnableWaveAnimation)
+            {
+                WaveCanvas.Visibility = Visibility.Visible;
+                if (_waveRenderer == null)
+                {
+                    InitializeWaveRenderer();
+                }
+            }
+
             var desktopWallpaper = new DesktopWallpaperManager();
             App.Log($"Multi-monitor detected: count={desktopWallpaper.MonitorCount}");
             if (desktopWallpaper.MonitorCount > 1)
@@ -936,6 +991,11 @@ public partial class MainWindow : Window
                     MessageBox.Show("壁纸设置成功！\n\n已为多屏分别生成图片并设置为系统桌面壁纸。", "万枝", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
 
+                if (Visibility != Visibility.Visible && AppSettings.Instance.WallpaperMode == WallpaperMode.Static)
+                {
+                    WaveCanvas.Visibility = Visibility.Collapsed;
+                }
+
                 return;
             }
         }
@@ -1024,6 +1084,11 @@ public partial class MainWindow : Window
                         MessageBox.Show($"设置壁纸失败，错误代码: {error}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 }
+
+                if (Visibility != Visibility.Visible && AppSettings.Instance.WallpaperMode == WallpaperMode.Static)
+                {
+                    WaveCanvas.Visibility = Visibility.Collapsed;
+                }
             }
             else
             {
@@ -1036,6 +1101,23 @@ public partial class MainWindow : Window
             if (!silent)
             {
                 MessageBox.Show($"生成壁纸失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        finally
+        {
+            // 静态模式：无论调用时窗口是否可见，生成完成后都强制隐藏波浪层并隐藏窗口，避免持续渲染导致 CPU 飙升
+            if (AppSettings.Instance.WallpaperMode == WallpaperMode.Static)
+            {
+                WaveCanvas.Visibility = Visibility.Collapsed;
+                if (IsVisible)
+                {
+                    Hide();
+                }
+            }
+            else
+            {
+                // 非静态模式恢复调用前状态
+                WaveCanvas.Visibility = prevWaveVisibility;
             }
         }
     }
