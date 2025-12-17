@@ -885,11 +885,18 @@ public partial class MainWindow : Window
                         {
                             WaveCanvas.ClearValue(FrameworkElement.WidthProperty);
                             WaveCanvas.HorizontalAlignment = HorizontalAlignment.Stretch;
+                            WaveCanvas.UpdateLayout();
                             if (_waveRenderer != null)
                             {
-                                _waveRenderer.SetCanvasSize(logicalWidth, WaveCanvas.Height);
+                                var waveWidth = WaveCanvas.ActualWidth > 0
+                                    ? WaveCanvas.ActualWidth
+                                    : (rootElement.ActualWidth > 0 ? rootElement.ActualWidth : logicalWidth);
+                                App.Log($"Wave regen width: {waveWidth}, canvas actual: {WaveCanvas.ActualWidth}x{WaveCanvas.ActualHeight}, root actual: {rootElement.ActualWidth}x{rootElement.ActualHeight}, logical: {logicalWidth}x{logicalHeight}");
+                                _waveRenderer.SetCanvasSize(waveWidth, WaveCanvas.Height);
                                 _waveRenderer.Update(0);
                             }
+
+                            rootElement.UpdateLayout();
                         }
                         catch
                         {
