@@ -91,12 +91,11 @@ namespace Wanzhi
             };
 
             // 加载壁纸模式
-            WallpaperModeComboBox.SelectedIndex = _settings.WallpaperMode switch
+            if (_settings.WallpaperMode != WallpaperMode.Static)
             {
-                WallpaperMode.Static => 0,
-                WallpaperMode.Dynamic => 1,
-                _ => 0
-            };
+                _settings.WallpaperMode = WallpaperMode.Static;
+            }
+            WallpaperModeComboBox.SelectedIndex = 0;
 
             // 加载背景颜色
             _selectedColor = (System.Windows.Media.Color)ColorConverter.ConvertFromString(_settings.BackgroundColor);
@@ -213,15 +212,13 @@ namespace Wanzhi
         private void WallpaperModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_settings == null) return;
-            if (WallpaperModeComboBox.SelectedItem is ComboBoxItem item && item.Tag != null)
+            // 暂时移除动态壁纸：无论 UI 如何变化，始终保持静态模式
+            if (_settings.WallpaperMode != WallpaperMode.Static)
             {
-                _settings.WallpaperMode = item.Tag.ToString() switch
-                {
-                    "Dynamic" => WallpaperMode.Dynamic,
-                    _ => WallpaperMode.Static
-                };
-                UpdateWaveControlsForWallpaperMode();
+                _settings.WallpaperMode = WallpaperMode.Static;
             }
+            WallpaperModeComboBox.SelectedIndex = 0;
+            UpdateWaveControlsForWallpaperMode();
         }
 
         /// <summary>
@@ -441,6 +438,12 @@ namespace Wanzhi
                 HorizontalCharacterSpacingPanel.Visibility = Visibility.Collapsed;
                 VerticalCharacterSpacingPanel.Visibility = Visibility.Visible;
             }
+
+            // 根据当前文字方向显示对应的对齐方式设置（隐藏不适用的选项）
+            if (VerticalAlignLabel != null) VerticalAlignLabel.Visibility = isHorizontal ? Visibility.Collapsed : Visibility.Visible;
+            if (VerticalAlignComboBox != null) VerticalAlignComboBox.Visibility = isHorizontal ? Visibility.Collapsed : Visibility.Visible;
+            if (HorizontalAlignLabel != null) HorizontalAlignLabel.Visibility = isHorizontal ? Visibility.Visible : Visibility.Collapsed;
+            if (HorizontalAlignComboBox != null) HorizontalAlignComboBox.Visibility = isHorizontal ? Visibility.Visible : Visibility.Collapsed;
 
             // 同步更新落款偏移量控件的可见性
             if (HorizontalPoetryOffsetLabel != null) HorizontalPoetryOffsetLabel.Visibility = isHorizontal ? Visibility.Visible : Visibility.Collapsed;

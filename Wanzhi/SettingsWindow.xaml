@@ -42,9 +42,9 @@
                                 <TextBlock Text="壁纸模式:" Margin="0,0,0,5"/>
                                 <ComboBox x:Name="WallpaperModeComboBox"
                                          Margin="0,0,0,10"
+                                         IsEnabled="False"
                                          SelectionChanged="WallpaperModeComboBox_SelectionChanged">
                                     <ComboBoxItem Content="静态壁纸" Tag="Static"/>
-                                    <ComboBoxItem Content="动态壁纸（实验功能，可能不生效）" Tag="Dynamic"/>
                                 </ComboBox>
                             </StackPanel>
                         </GroupBox>
@@ -95,7 +95,7 @@
                                 <ComboBoxItem Content="横排" Tag="Horizontal"/>
                             </ComboBox>
 
-                            <TextBlock Text="竖排对齐:" Margin="0,0,0,5"/>
+                            <TextBlock x:Name="VerticalAlignLabel" Text="竖排对齐:" Margin="0,0,0,5"/>
                             <ComboBox x:Name="VerticalAlignComboBox" 
                                      Margin="0,0,0,10"
                                      SelectionChanged="VerticalAlignComboBox_SelectionChanged">
@@ -104,7 +104,7 @@
                                 <ComboBoxItem Content="底部对齐" Tag="Bottom"/>
                             </ComboBox>
 
-                            <TextBlock Text="横排对齐:" Margin="0,0,0,5"/>
+                            <TextBlock x:Name="HorizontalAlignLabel" Text="横排对齐:" Margin="0,0,0,5"/>
                             <ComboBox x:Name="HorizontalAlignComboBox" 
                                      Margin="0,0,0,10"
                                      SelectionChanged="HorizontalAlignComboBox_SelectionChanged">

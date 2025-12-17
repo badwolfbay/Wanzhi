@@ -41,7 +41,12 @@ namespace Wanzhi.Settings
         public WallpaperMode WallpaperMode
         {
             get => _wallpaperMode;
-            set { _wallpaperMode = value; OnPropertyChanged(); }
+            set
+            {
+                // 暂时移除动态壁纸：无论外部赋值为何，始终保持静态模式
+                _wallpaperMode = WallpaperMode.Static;
+                OnPropertyChanged();
+            }
         }
 
         // 启用波浪动画（在预览窗口或动态模式下生效）
@@ -212,6 +217,11 @@ namespace Wanzhi.Settings
                     var settings = JsonConvert.DeserializeObject<AppSettings>(json);
                     if (settings != null)
                     {
+                        // 兼容旧配置：曾保存为 Dynamic 时，启动时强制回退到 Static
+                        if (settings._wallpaperMode != WallpaperMode.Static)
+                        {
+                            settings._wallpaperMode = WallpaperMode.Static;
+                        }
                         return settings;
                     }
                 }
