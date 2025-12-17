@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private readonly ThemeDetector _themeDetector;
     private DateTime _lastAnimationTime;
     private bool _isDarkTheme;
+    private bool _startupPoetryRetryScheduled;
 
     // Windows API for setting wallpaper
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
@@ -173,6 +174,18 @@ public partial class MainWindow : Window
 
     private PoetryData? _currentPoetry;
 
+    private async System.Threading.Tasks.Task RetryLoadPoetryOnceAfterStartupAsync()
+    {
+        if (_startupPoetryRetryScheduled)
+        {
+            return;
+        }
+
+        _startupPoetryRetryScheduled = true;
+        await System.Threading.Tasks.Task.Delay(6000);
+        await LoadPoetryAsync();
+    }
+
     private async System.Threading.Tasks.Task LoadPoetryAsync()
     {
         PoetryData? poetry = null;
@@ -180,7 +193,7 @@ public partial class MainWindow : Window
         {
             App.Log("开始加载诗词...");
             // Add a timeout to prevent hanging indefinitely
-            var timeoutTask = System.Threading.Tasks.Task.Delay(10000);
+            var timeoutTask = System.Threading.Tasks.Task.Delay(_currentPoetry == null ? 20000 : 10000);
             var loadTask = _poetryService.GetPoetryAsync();
             
             var completedTask = await System.Threading.Tasks.Task.WhenAny(loadTask, timeoutTask);
@@ -212,6 +225,11 @@ public partial class MainWindow : Window
                     Dynasty = "现代"
                 }
             };
+
+            if (_currentPoetry == null)
+            {
+                _ = RetryLoadPoetryOnceAfterStartupAsync();
+            }
         }
 
         if (poetry != null)
