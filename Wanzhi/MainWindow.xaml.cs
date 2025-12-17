@@ -778,10 +778,6 @@ public partial class MainWindow : Window
                         await ApplyAsWallpaperAsync(silent: true);
                     }
                 }
-                else
-                {
-                    _ = LoadPoetryAsync();
-                }
                 break;
                 
             case nameof(AppSettings.PoetryCharacterSpacing):
@@ -797,10 +793,6 @@ public partial class MainWindow : Window
                     {
                         await ApplyAsWallpaperAsync(silent: true);
                     }
-                }
-                else
-                {
-                    _ = LoadPoetryAsync();
                 }
                 break;
         }
@@ -821,8 +813,7 @@ public partial class MainWindow : Window
         // 确保诗词已加载
         if (_currentPoetry == null)
         {
-            App.Log("诗词未加载，等待加载完成...");
-            await LoadPoetryAsync();
+            return;
         }
         
         try
