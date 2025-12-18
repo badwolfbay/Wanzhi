@@ -90,13 +90,6 @@ namespace Wanzhi
                 _ => 2
             };
 
-            // 加载壁纸模式
-            if (_settings.WallpaperMode != WallpaperMode.Static)
-            {
-                _settings.WallpaperMode = WallpaperMode.Static;
-            }
-            WallpaperModeComboBox.SelectedIndex = 0;
-
             // 加载背景颜色
             _selectedColor = (System.Windows.Media.Color)ColorConverter.ConvertFromString(_settings.BackgroundColor);
             UpdateColorButtonBackground();
@@ -104,10 +97,6 @@ namespace Wanzhi
             // 加载波浪颜色
             _selectedWaveColor = (System.Windows.Media.Color)ColorConverter.ConvertFromString(_settings.WaveColor);
             UpdateWaveColorButtonBackground();
-
-            // 加载动画设置
-            EnableWaveCheckBox.IsChecked = _settings.EnableWaveAnimation;
-            UpdateWaveControlsForWallpaperMode();
 
             // 加载诗词设置
             // 选中对应的正文字体
@@ -209,39 +198,6 @@ namespace Wanzhi
             }
         }
 
-        private void WallpaperModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (_settings == null) return;
-            // 暂时移除动态壁纸：无论 UI 如何变化，始终保持静态模式
-            if (_settings.WallpaperMode != WallpaperMode.Static)
-            {
-                _settings.WallpaperMode = WallpaperMode.Static;
-            }
-            WallpaperModeComboBox.SelectedIndex = 0;
-            UpdateWaveControlsForWallpaperMode();
-        }
-
-        /// <summary>
-        /// 根据壁纸模式更新波浪相关控件的可见性/提示。
-        /// </summary>
-        private void UpdateWaveControlsForWallpaperMode()
-        {
-            if (EnableWaveCheckBox == null || WaveCpuHintText == null) return;
-
-            if (_settings.WallpaperMode == WallpaperMode.Dynamic)
-            {
-                // 动态壁纸：允许用户控制是否启用动画，并显示 CPU 提示
-                EnableWaveCheckBox.Visibility = Visibility.Visible;
-                EnableWaveCheckBox.IsEnabled = true;
-                WaveCpuHintText.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                // 静态壁纸：保留波浪颜色设置，但动画对最终壁纸影响不大，避免概念重叠，直接隐藏
-                EnableWaveCheckBox.Visibility = Visibility.Collapsed;
-                WaveCpuHintText.Visibility = Visibility.Collapsed;
-            }
-        }
 
         private void ColorPickerButton_Click(object sender, RoutedEventArgs e)
         {
@@ -326,12 +282,6 @@ namespace Wanzhi
                     _ => HorizontalTextAlignment.Center
                 };
             }
-        }
-
-        private void EnableWaveCheckBox_Changed(object sender, RoutedEventArgs e)
-        {
-            if (_settings == null) return;
-            _settings.EnableWaveAnimation = EnableWaveCheckBox.IsChecked ?? true;
         }
 
         private void PoetryFontSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)

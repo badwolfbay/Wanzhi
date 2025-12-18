@@ -1,11 +1,13 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+
 using System.Windows.Threading;
 using Wanzhi.Models;
 using Wanzhi.Rendering;
@@ -22,21 +24,22 @@ public partial class MainWindow : Window
 {
     private readonly JinrishiciService _poetryService;
     private WaveRenderer? _waveRenderer;
-    private readonly DispatcherTimer _animationTimer;
     private readonly DispatcherTimer _poetryRefreshTimer;
     private readonly DispatcherTimer _diagTimer;
     private readonly ThemeDetector _themeDetector;
-    private DateTime _lastAnimationTime;
     private bool _isDarkTheme;
     private bool _startupPoetryRetryScheduled;
 
-    private long _diagAnimationTicks;
     private long _diagPoetryRefreshTicks;
     private long _diagSettingsChanged;
     private long _diagLoadPoetryCalls;
     private long _diagUpdatePoetryUiCalls;
     private long _diagApplyThemeCalls;
+
     private long _diagApplyWallpaperCalls;
+
+    private CancellationTokenSource? _applyWallpaperCts;
+    private readonly SemaphoreSlim _applyWallpaperLock = new SemaphoreSlim(1, 1);
 
     // Windows API for setting wallpaper
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
@@ -52,14 +55,6 @@ public partial class MainWindow : Window
 
         _poetryService = new JinrishiciService();
         _themeDetector = new ThemeDetector();
-        _lastAnimationTime = DateTime.Now;
-
-        // 初始化动画定时器
-        _animationTimer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(16) // ~60 FPS
-        };
-        _animationTimer.Tick += AnimationTimer_Tick;
 
         // 初始化诗词刷新定时器
         _poetryRefreshTimer = new DispatcherTimer();
@@ -75,7 +70,6 @@ public partial class MainWindow : Window
         };
         _diagTimer.Tick += (s, e) =>
         {
-            var anim = System.Threading.Interlocked.Exchange(ref _diagAnimationTicks, 0);
             var poetryTick = System.Threading.Interlocked.Exchange(ref _diagPoetryRefreshTicks, 0);
             var settings = System.Threading.Interlocked.Exchange(ref _diagSettingsChanged, 0);
             var load = System.Threading.Interlocked.Exchange(ref _diagLoadPoetryCalls, 0);
@@ -83,7 +77,7 @@ public partial class MainWindow : Window
             var theme = System.Threading.Interlocked.Exchange(ref _diagApplyThemeCalls, 0);
             var applyWp = System.Threading.Interlocked.Exchange(ref _diagApplyWallpaperCalls, 0);
 
-            App.Log($"CPU diag (5s): Visible={Visibility}, IsVisible={IsVisible}, WindowState={WindowState}, Mode={AppSettings.Instance.WallpaperMode}, EnableWaveAnim={AppSettings.Instance.EnableWaveAnimation}, animTick={anim}, poetryTimerTick={poetryTick}, settingsChanged={settings}, loadPoetry={load}, updatePoetryUI={ui}, applyTheme={theme}, applyWallpaper={applyWp}");
+            App.Log($"CPU diag (5s): Visible={Visibility}, IsVisible={IsVisible}, WindowState={WindowState}, poetryTimerTick={poetryTick}, settingsChanged={settings}, loadPoetry={load}, updatePoetryUI={ui}, applyTheme={theme}, applyWallpaper={applyWp}");
         };
         _diagTimer.Start();
 
@@ -97,42 +91,22 @@ public partial class MainWindow : Window
     private async System.Threading.Tasks.Task InitializeApp()
     {
         App.Log("Initializing App...");
-        
+
         // 设置窗口覆盖所有显示器
         SetupWindowBounds();
 
         // 应用当前主题
         ApplyTheme();
 
-        if (AppSettings.Instance.WallpaperMode == WallpaperMode.Dynamic)
-        {
-            // 动态模式下才初始化波浪渲染器
-            if (AppSettings.Instance.EnableWaveAnimation)
-            {
-                InitializeWaveRenderer();
-            }
-        }
-        else
-        {
-            // 静态模式空闲时隐藏波浪层，避免渲染线程持续工作
-            WaveCanvas.Visibility = Visibility.Collapsed;
-        }
+        InitializeWaveRenderer();
+        WaveCanvas.Visibility = Visibility.Collapsed;
 
         // 加载诗词（后台异步，不阻塞启动）
         _ = LoadPoetryAsync();
 
-        // 启动动画（仅动态壁纸模式）
-        if (AppSettings.Instance.EnableWaveAnimation && AppSettings.Instance.WallpaperMode == WallpaperMode.Dynamic)
-        {
-            _animationTimer.Start();
-        }
-
         // 设置诗词刷新间隔
         UpdateRefreshInterval();
-        
-        // 隐藏窗口，等待用户主动应用壁纸
-        Hide();
-        
+
         App.Log("App Initialized.");
     }
 
@@ -147,11 +121,11 @@ public partial class MainWindow : Window
         // 获取主屏幕尺寸（WPF方法）
         var screenWidth = SystemParameters.PrimaryScreenWidth;
         var screenHeight = SystemParameters.PrimaryScreenHeight;
-        
+
         // 设置窗口大小以匹配屏幕，用于渲染
         Width = screenWidth;
         Height = screenHeight;
-        
+
         // 确保 ViewBox 或 Grid 填满
         if (Content is FrameworkElement content)
         {
@@ -164,7 +138,6 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
     {
-        _animationTimer.Stop();
         _poetryRefreshTimer.Stop();
         _diagTimer.Stop();
     }
@@ -179,7 +152,7 @@ public partial class MainWindow : Window
         var height = 400.0;
 
         _waveRenderer = new WaveRenderer(width, height, 5); // 5层波浪
-        
+
         // 添加波浪路径到画布
         foreach (var path in _waveRenderer.GetWavePaths())
         {
@@ -188,27 +161,9 @@ public partial class MainWindow : Window
 
         // 初始应用颜色
         ApplyTheme();
-        
+
         // 立即更新一次以生成初始形状，否则第一帧可能是空的
         _waveRenderer.Update(0);
-    }
-
-    private void AnimationTimer_Tick(object? sender, EventArgs e)
-    {
-        System.Threading.Interlocked.Increment(ref _diagAnimationTicks);
-        if (AppSettings.Instance.WallpaperMode != WallpaperMode.Dynamic || Visibility != Visibility.Visible)
-        {
-            _animationTimer.Stop();
-            return;
-        }
-
-        if (_waveRenderer == null) return;
-
-        var now = DateTime.Now;
-        var deltaTime = (now - _lastAnimationTime).TotalSeconds;
-        _lastAnimationTime = now;
-
-        _waveRenderer.Update(deltaTime);
     }
 
     private PoetryData? _currentPoetry;
@@ -235,7 +190,7 @@ public partial class MainWindow : Window
             // Add a timeout to prevent hanging indefinitely
             var timeoutTask = System.Threading.Tasks.Task.Delay(_currentPoetry == null ? 20000 : 10000);
             var loadTask = _poetryService.GetPoetryAsync();
-            
+
             var completedTask = await System.Threading.Tasks.Task.WhenAny(loadTask, timeoutTask);
             if (completedTask == loadTask)
             {
@@ -277,6 +232,36 @@ public partial class MainWindow : Window
             App.Log($"诗词加载成功: {poetry.Content.Substring(0, Math.Min(5, poetry.Content.Length))}...");
             _currentPoetry = poetry;
             UpdatePoetryDisplay(poetry);
+            _ = QueueApplyWallpaperAsync();
+        }
+    }
+
+    private async System.Threading.Tasks.Task QueueApplyWallpaperAsync()
+    {
+        var cts = new CancellationTokenSource();
+        var prev = System.Threading.Interlocked.Exchange(ref _applyWallpaperCts, cts);
+        prev?.Cancel();
+        prev?.Dispose();
+
+        try
+        {
+            await System.Threading.Tasks.Task.Delay(250, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        await _applyWallpaperLock.WaitAsync(cts.Token);
+        try
+        {
+            var op = Dispatcher.InvokeAsync(() => ApplyAsWallpaperAsync(silent: true));
+            var inner = await op.Task;
+            await inner;
+        }
+        finally
+        {
+            _applyWallpaperLock.Release();
         }
     }
 
@@ -286,7 +271,7 @@ public partial class MainWindow : Window
         // RGB values are 0-255, so we normalize effectively by not dividing, 
         // using the threshold of 128 instead of 0.5
         double luminance = (0.299 * backgroundColor.R + 0.587 * backgroundColor.G + 0.114 * backgroundColor.B);
-        
+
         var color = luminance < 128 ? Colors.White : Color.FromRgb(55, 71, 79);
         App.Log($"背景亮度: {luminance}, 文本颜色: {color}");
         return color;
@@ -306,13 +291,68 @@ public partial class MainWindow : Window
             // Determine text color based on background
             var settings = AppSettings.Instance;
             Color bgColor;
+
+            // 根据主题模式确定背景颜色
+            switch (settings.Theme)
+            {
+                case ThemeMode.Light:
+                    bgColor = Color.FromRgb(245, 245, 245); // 浅灰色背景
+                    break;
+
+                case ThemeMode.Dark:
+                    bgColor = Color.FromRgb(30, 30, 30); // 深色背景
+                    break;
+
+                case ThemeMode.System:
+                    // 检测系统主题
+                    bool isSystemDark = _themeDetector.IsDarkTheme();
+                    bgColor = isSystemDark
+                        ? Color.FromRgb(30, 30, 30)  // 深色
+                        : Color.FromRgb(245, 245, 245); // 浅色
+                    break;
+
+                default:
+                    bgColor = Color.FromRgb(245, 245, 245);
+                    break;
+            }
+
+            // 如果用户自定义了背景色（不是默认的深蓝色），使用自定义颜色覆盖主题默认值
             try
             {
-                bgColor = (Color)ColorConverter.ConvertFromString(settings.BackgroundColor);
+                // 默认背景色是 #FF1E3A8A (深蓝色)
+                if (settings.BackgroundColor != "#FF1E3A8A")
+                {
+                    var customColor = (Color)ColorConverter.ConvertFromString(settings.BackgroundColor);
+                    bgColor = customColor;
+                }
             }
             catch
             {
-                bgColor = Color.FromRgb(245, 245, 245);
+                // 如果解析失败，使用主题默认颜色
+            }
+
+            // 确定当前主题 (基于背景亮度)
+            // 计算相对亮度: 0.299*R + 0.587*G + 0.114*B
+            double luminance = (0.299 * bgColor.R + 0.587 * bgColor.G + 0.114 * bgColor.B);
+            _isDarkTheme = luminance < 128; // 亮度低则是深色主题
+
+            // 应用波浪颜色
+            try
+            {
+                var waveBaseColor = (Color)ColorConverter.ConvertFromString(settings.WaveColor);
+                if (_waveRenderer != null)
+                {
+                    _waveRenderer.UpdateColor(waveBaseColor, _isDarkTheme);
+                }
+            }
+            catch
+            {
+                // 默认深蓝色
+                var defaultWaveColor = Color.FromRgb(57, 73, 171);
+                if (_waveRenderer != null)
+                {
+                    _waveRenderer.UpdateColor(defaultWaveColor, _isDarkTheme);
+                }
             }
 
             var textColorVal = GetLegibleTextColor(bgColor);
@@ -358,12 +398,12 @@ public partial class MainWindow : Window
 
         // 1. 处理正文 (从右向左排列，第一句在最右)
         var sentences = poetry.Content.Split(new[] { '，', '。', '？', '！', '；', ',', '.', '?', '!', ';' }, StringSplitOptions.RemoveEmptyEntries);
-        
+
         foreach (var sentence in sentences)
         {
-            var column = new StackPanel 
-            { 
-                Orientation = Orientation.Vertical, 
+            var column = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
                 Margin = new Thickness(15, 0, 15, 0),
                 VerticalAlignment = columnAlignment
             };
@@ -376,26 +416,26 @@ public partial class MainWindow : Window
                     continue;
                 }
 
-                column.Children.Add(new TextBlock 
-                { 
-                    Text = c.ToString(), 
-                    FontSize = AppSettings.Instance.PoetryFontSize, 
+                column.Children.Add(new TextBlock
+                {
+                    Text = c.ToString(),
+                    FontSize = AppSettings.Instance.PoetryFontSize,
                     FontFamily = new FontFamily(AppSettings.Instance.PoetryFontFamily), // 使用设置的字体
-                    Foreground = textColor, 
+                    Foreground = textColor,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     Margin = new Thickness(0, AppSettings.Instance.PoetryVerticalCharacterSpacing, 0, AppSettings.Instance.PoetryVerticalCharacterSpacing)
                 });
             }
-            
+
             PoetryContainer.Children.Add(column);
         }
 
         // 2. 处理落款 (在最左边，即最后添加)
-        var footerColumn = new StackPanel 
-        { 
-            Orientation = Orientation.Vertical, 
+        var footerColumn = new StackPanel
+        {
+            Orientation = Orientation.Vertical,
             Margin = new Thickness(40, 0, 0, 0),
-            VerticalAlignment = columnAlignment 
+            VerticalAlignment = columnAlignment
         };
         footerColumn.RenderTransform = new TranslateTransform(0, AppSettings.Instance.VerticalPoetryOffset);
 
@@ -403,74 +443,52 @@ public partial class MainWindow : Window
         if (!string.IsNullOrEmpty(poetry.Origin?.Title))
         {
             var titleStack = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 0, 15) };
-            
+
             // 上引号 (竖排专用)
-            titleStack.Children.Add(new TextBlock { 
-                Text = "﹁", 
-                FontSize = 16, 
-                FontFamily = new FontFamily(AppSettings.Instance.AuthorFontFamily),
-                Foreground = secondaryTextColor,
-                HorizontalAlignment = HorizontalAlignment.Center, 
-                Margin = new Thickness(0, 0, 0, 5) 
-            });
-            
+            titleStack.Children.Add(new TextBlock { Text = "﹁", FontSize = 16, FontFamily = new FontFamily(AppSettings.Instance.AuthorFontFamily), Foreground = secondaryTextColor, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 5) });
+
             foreach (var c in poetry.Origin.Title)
             {
-                titleStack.Children.Add(new TextBlock 
-                { 
-                    Text = c.ToString(), 
-                    FontSize = AppSettings.Instance.AuthorFontSize, // 使用作者字体大小
-                    FontFamily = new FontFamily(AppSettings.Instance.AuthorFontFamily),
-                    Foreground = secondaryTextColor,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 1, 0, 1) // 固定美观间距
-                });
+                titleStack.Children.Add(new TextBlock { Text = c.ToString(), FontSize = AppSettings.Instance.AuthorFontSize, FontFamily = new FontFamily(AppSettings.Instance.AuthorFontFamily), Foreground = secondaryTextColor, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 1, 0, 1) });
             }
-            
+
             // 下引号 (竖排专用)
-            titleStack.Children.Add(new TextBlock { 
-                Text = "﹂", 
-                FontSize = AppSettings.Instance.AuthorFontSize, // 使用作者字体大小
-                FontFamily = new FontFamily(AppSettings.Instance.AuthorFontFamily),
-                Foreground = secondaryTextColor,
-                HorizontalAlignment = HorizontalAlignment.Center, 
-                Margin = new Thickness(0, 5, 0, 0) 
-            });
-            
+            titleStack.Children.Add(new TextBlock { Text = "﹂", FontSize = AppSettings.Instance.AuthorFontSize, FontFamily = new FontFamily(AppSettings.Instance.AuthorFontFamily), Foreground = secondaryTextColor, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 5, 0, 0) });
+
             footerColumn.Children.Add(titleStack);
         }
 
         // 作者印章
         if (!string.IsNullOrEmpty(poetry.Origin?.Author))
         {
-            var sealBorder = new Border 
-            { 
+            var sealBorder = new Border
+            {
                 Background = new SolidColorBrush(Color.FromRgb(183, 28, 28)), // #B71C1C
                 CornerRadius = new CornerRadius(2),
                 Padding = new Thickness(4, 8, 4, 8),
                 HorizontalAlignment = HorizontalAlignment.Center
             };
-            
+
             var sealStack = new StackPanel { Orientation = Orientation.Vertical };
-            
+
             foreach (var c in poetry.Origin.Author)
             {
-                sealStack.Children.Add(new TextBlock 
-                { 
-                    Text = c.ToString(), 
+                sealStack.Children.Add(new TextBlock
+                {
+                    Text = c.ToString(),
                     FontSize = Math.Max(10, AppSettings.Instance.AuthorFontSize * 0.8), // 印章字体稍小
                     FontWeight = FontWeights.Bold,
                     FontFamily = new FontFamily(AppSettings.Instance.AuthorFontFamily),
-                    Foreground = Brushes.White, 
+                    Foreground = Brushes.White,
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 1, 0, 1) // 固定美观间距
+                    Margin = new Thickness(0, 1, 0, 1)
                 });
             }
-            
+
             sealBorder.Child = sealStack;
             footerColumn.Children.Add(sealBorder);
         }
-        
+
         PoetryContainer.Children.Add(footerColumn);
     }
 
@@ -480,12 +498,12 @@ public partial class MainWindow : Window
         PoetryContainer.Orientation = Orientation.Vertical;
         PoetryContainer.FlowDirection = FlowDirection.LeftToRight;
         PoetryContainer.VerticalAlignment = VerticalAlignment.Center;
-        
+
         // 1. 处理正文
         var sentences = poetry.Content.Split(new[] { '，', '。', '？', '！', '；', ',', '.', '?', '!', ';' }, StringSplitOptions.RemoveEmptyEntries);
-        
-        var contentStack = new StackPanel 
-        { 
+
+        var contentStack = new StackPanel
+        {
             Orientation = Orientation.Vertical,
             Margin = new Thickness(0, 0, 0, 40)
         };
@@ -540,11 +558,11 @@ public partial class MainWindow : Window
         PoetryContainer.Children.Add(contentStack);
 
         // 2. 处理落款 (标题和作者) - 横排时同一行显示
-        var footerStack = new StackPanel 
-        { 
-            Orientation = Orientation.Horizontal, 
+        var footerStack = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 0, 0) 
+            Margin = new Thickness(0, 0, 0, 0)
         };
         footerStack.RenderTransform = new TranslateTransform(AppSettings.Instance.HorizontalPoetryOffset, 0);
 
@@ -601,14 +619,14 @@ public partial class MainWindow : Window
         // 作者 (带红色印章背景)
         if (!string.IsNullOrEmpty(poetry.Origin?.Author))
         {
-            var sealBorder = new Border 
-            { 
+            var sealBorder = new Border
+            {
                 Background = new SolidColorBrush(Color.FromRgb(183, 28, 28)), // #B71C1C
                 CornerRadius = new CornerRadius(2),
                 Padding = new Thickness(8, 4, 8, 4), // 横排稍微宽一点
                 VerticalAlignment = VerticalAlignment.Center
             };
-            
+
             // 创建一个容器来放置带间距的字符
             var authorPanel = new StackPanel
             {
@@ -642,7 +660,7 @@ public partial class MainWindow : Window
             sealBorder.Child = authorPanel;
             footerStack.Children.Add(sealBorder);
         }
-        
+
         PoetryContainer.Children.Add(footerStack);
     }
 
@@ -651,31 +669,31 @@ public partial class MainWindow : Window
         System.Threading.Interlocked.Increment(ref _diagApplyThemeCalls);
         var settings = AppSettings.Instance;
         Color bgColor;
-        
+
         // 根据主题模式确定背景颜色
         switch (settings.Theme)
         {
             case ThemeMode.Light:
                 bgColor = Color.FromRgb(245, 245, 245); // 浅灰色背景
                 break;
-                
+
             case ThemeMode.Dark:
                 bgColor = Color.FromRgb(30, 30, 30); // 深色背景
                 break;
-                
+
             case ThemeMode.System:
                 // 检测系统主题
                 bool isSystemDark = _themeDetector.IsDarkTheme();
-                bgColor = isSystemDark 
+                bgColor = isSystemDark
                     ? Color.FromRgb(30, 30, 30)  // 深色
                     : Color.FromRgb(245, 245, 245); // 浅色
                 break;
-                
+
             default:
                 bgColor = Color.FromRgb(245, 245, 245);
                 break;
         }
-        
+
         // 如果用户自定义了背景色（不是默认的深蓝色），使用自定义颜色覆盖主题默认值
         try
         {
@@ -690,14 +708,14 @@ public partial class MainWindow : Window
         {
             // 如果解析失败，使用主题默认颜色
         }
-        
+
         BackgroundRect.Fill = new SolidColorBrush(bgColor);
 
         // 确定当前主题 (基于背景亮度)
         // 计算相对亮度: 0.299*R + 0.587*G + 0.114*B
         double luminance = (0.299 * bgColor.R + 0.587 * bgColor.G + 0.114 * bgColor.B);
         _isDarkTheme = luminance < 128; // 亮度低则是深色主题
-        
+
         // 应用波浪颜色
         try
         {
@@ -736,56 +754,10 @@ public partial class MainWindow : Window
         System.Threading.Interlocked.Increment(ref _diagSettingsChanged);
         switch (e.PropertyName)
         {
-            case nameof(AppSettings.WallpaperMode):
-                // 壁纸模式变化时，重新应用壁纸
-                var settings = AppSettings.Instance;
-                if (settings.WallpaperMode == WallpaperMode.Dynamic)
-                {
-                    // 动态壁纸模式
-                    if (Visibility != Visibility.Visible)
-                    {
-                        Show();
-                    }
-                    
-                    // 尝试将窗口嵌入桌面
-                    bool attached = DesktopHost.Attach(this);
-                    if (!attached)
-                    {
-                        // 如果嵌入失败，回退到静态模式
-                        settings.WallpaperMode = WallpaperMode.Static;
-                        await ApplyAsWallpaperAsync(silent: true);
-                    }
-                    else
-                    {
-                        // 确保动画开启（如果启用）
-                        if (settings.EnableWaveAnimation && _waveRenderer != null)
-                        {
-                            _animationTimer.Start();
-                        }
-                    }
-                }
-                else
-                {
-                    // 静态壁纸模式
-                    // 从桌面宿主中移除窗口
-                    DesktopHost.Detach(this);
-                    
-                    // 隐藏窗口
-                    Hide();
-                    
-                    // 应用为静态壁纸
-                    await ApplyAsWallpaperAsync(silent: true);
-                    
-                    // 停止动画以节省资源
-                    _animationTimer.Stop();
-                }
-                break;
-
             case nameof(AppSettings.Theme):
             case nameof(AppSettings.BackgroundColor):
                 ApplyTheme();
-                // 如果当前是静态壁纸模式，更新壁纸
-                if (_currentPoetry != null && AppSettings.Instance.WallpaperMode == WallpaperMode.Static)
+                if (_currentPoetry != null)
                 {
                     UpdatePoetryDisplay(_currentPoetry);
                     await ApplyAsWallpaperAsync(silent: true);
@@ -794,27 +766,10 @@ public partial class MainWindow : Window
 
             case nameof(AppSettings.WaveColor):
                 ApplyTheme();
-                // 如果当前是动态壁纸模式，直接更新显示
-                if (AppSettings.Instance.WallpaperMode == WallpaperMode.Dynamic && _currentPoetry != null)
+                if (_currentPoetry != null)
                 {
                     UpdatePoetryDisplay(_currentPoetry);
-                }
-                break;
-            
-            case nameof(AppSettings.EnableWaveAnimation):
-                if (AppSettings.Instance.EnableWaveAnimation)
-                {
-                    InitializeWaveRenderer();
-                    // 只有在动态壁纸模式下才启动动画
-                    if (AppSettings.Instance.WallpaperMode == WallpaperMode.Dynamic)
-                    {
-                        _animationTimer.Start();
-                    }
-                }
-                else
-                {
-                    // 仅停止动画计时器，保留当前波浪形状作为静态背景
-                    _animationTimer.Stop();
+                    await ApplyAsWallpaperAsync(silent: true);
                 }
                 break;
 
@@ -830,30 +785,22 @@ public partial class MainWindow : Window
             case nameof(AppSettings.VerticalPoetryAlignment):
             case nameof(AppSettings.HorizontalPoetryAlignment):
                 // 重新加载诗词以应用新样式
-                if (_currentPoetry != null) 
+                if (_currentPoetry != null)
                 {
                     UpdatePoetryDisplay(_currentPoetry);
-                    // 如果是静态壁纸模式，更新壁纸
-                    if (AppSettings.Instance.WallpaperMode == WallpaperMode.Static)
-                    {
-                        await ApplyAsWallpaperAsync(silent: true);
-                    }
+                    await ApplyAsWallpaperAsync(silent: true);
                 }
                 break;
-                
+
             case nameof(AppSettings.PoetryCharacterSpacing):
             case nameof(AppSettings.PoetryVerticalCharacterSpacing):
             case nameof(AppSettings.VerticalPoetryOffset):
             case nameof(AppSettings.HorizontalPoetryOffset):
                 // 重新加载诗词以应用新样式
-                if (_currentPoetry != null) 
+                if (_currentPoetry != null)
                 {
                     UpdatePoetryDisplay(_currentPoetry);
-                    // 如果是静态壁纸模式，更新壁纸
-                    if (AppSettings.Instance.WallpaperMode == WallpaperMode.Static)
-                    {
-                        await ApplyAsWallpaperAsync(silent: true);
-                    }
+                    await ApplyAsWallpaperAsync(silent: true);
                 }
                 break;
         }
@@ -871,7 +818,7 @@ public partial class MainWindow : Window
     {
         System.Threading.Interlocked.Increment(ref _diagApplyWallpaperCalls);
         App.Log("ApplyAsWallpaper called (Static Image Mode).");
-        
+
         // 确保诗词已加载
         if (_currentPoetry == null)
         {
@@ -881,14 +828,10 @@ public partial class MainWindow : Window
         var prevWaveVisibility = WaveCanvas.Visibility;
         try
         {
-            // 仅在需要渲染波浪层时临时打开，避免在静态模式下让透明全屏窗口持续参与渲染管线
-            if (AppSettings.Instance.EnableWaveAnimation)
+            WaveCanvas.Visibility = Visibility.Visible;
+            if (_waveRenderer == null)
             {
-                WaveCanvas.Visibility = Visibility.Visible;
-                if (_waveRenderer == null)
-                {
-                    InitializeWaveRenderer();
-                }
+                InitializeWaveRenderer();
             }
 
             var desktopWallpaper = new DesktopWallpaperManager();
@@ -991,7 +934,7 @@ public partial class MainWindow : Window
                     MessageBox.Show("壁纸设置成功！\n\n已为多屏分别生成图片并设置为系统桌面壁纸。", "万枝", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
 
-                if (Visibility != Visibility.Visible && AppSettings.Instance.WallpaperMode == WallpaperMode.Static)
+                if (Visibility != Visibility.Visible)
                 {
                     WaveCanvas.Visibility = Visibility.Collapsed;
                 }
@@ -1003,7 +946,7 @@ public partial class MainWindow : Window
         {
             App.Log($"多屏壁纸设置失败，回退单屏逻辑: {ex}");
         }
-        
+
         try
         {
             // 1. 获取屏幕逻辑尺寸
@@ -1018,55 +961,55 @@ public partial class MainWindow : Window
             var dpi = VisualTreeHelper.GetDpi(this);
             dpiScaleX = dpi.DpiScaleX;
             dpiScaleY = dpi.DpiScaleY;
-            
+
             // 计算物理像素尺寸
             int pixelWidth = (int)(width * dpiScaleX);
             int pixelHeight = (int)(height * dpiScaleY);
-            
+
             App.Log($"屏幕逻辑尺寸: {width}x{height}, DPI缩放: {dpiScaleX:F2}");
             App.Log($"生成壁纸像素尺寸: {pixelWidth}x{pixelHeight}");
-            
+
             // 获取根元素（Grid）
             if (Content is FrameworkElement rootElement)
             {
                 // 设置逻辑尺寸进行布局
                 rootElement.Width = width;
                 rootElement.Height = height;
-                
+
                 // 强制重新测量和排列
                 rootElement.Measure(new Size(width, height));
                 rootElement.Arrange(new Rect(0, 0, width, height));
                 rootElement.UpdateLayout();
-                
+
                 App.Log($"布局更新完成: {width}x{height}");
 
                 // 3. 使用实际 DPI 和物理像素尺寸进行渲染
                 var renderBitmap = new RenderTargetBitmap(
-                    pixelWidth, 
-                    pixelHeight, 
-                    96.0 * dpiScaleX, 
-                    96.0 * dpiScaleY, 
+                    pixelWidth,
+                    pixelHeight,
+                    96.0 * dpiScaleX,
+                    96.0 * dpiScaleY,
                     PixelFormats.Pbgra32);
-                
-                renderBitmap.Render(rootElement); 
+
+                renderBitmap.Render(rootElement);
 
                 // 3. 保存为文件
                 var appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Wanzhi");
                 Directory.CreateDirectory(appDataPath);
                 var wallpaperPath = Path.Combine(appDataPath, "wallpaper.png");
-                
+
                 using (var fileStream = new FileStream(wallpaperPath, FileMode.Create))
                 {
                     var encoder = new PngBitmapEncoder();
                     encoder.Frames.Add(BitmapFrame.Create(renderBitmap));
                     encoder.Save(fileStream);
                 }
-                
+
                 App.Log($"壁纸图片已保存: {wallpaperPath}");
 
                 // 4. 设置为系统壁纸
                 int result = SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, wallpaperPath, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
-                
+
                 if (result != 0)
                 {
                     App.Log("系统壁纸设置成功");
@@ -1085,7 +1028,7 @@ public partial class MainWindow : Window
                     }
                 }
 
-                if (Visibility != Visibility.Visible && AppSettings.Instance.WallpaperMode == WallpaperMode.Static)
+                if (Visibility != Visibility.Visible)
                 {
                     WaveCanvas.Visibility = Visibility.Collapsed;
                 }
@@ -1105,20 +1048,8 @@ public partial class MainWindow : Window
         }
         finally
         {
-            // 静态模式：无论调用时窗口是否可见，生成完成后都强制隐藏波浪层并隐藏窗口，避免持续渲染导致 CPU 飙升
-            if (AppSettings.Instance.WallpaperMode == WallpaperMode.Static)
-            {
-                WaveCanvas.Visibility = Visibility.Collapsed;
-                if (IsVisible)
-                {
-                    Hide();
-                }
-            }
-            else
-            {
-                // 非静态模式恢复调用前状态
-                WaveCanvas.Visibility = prevWaveVisibility;
-            }
+            // 恢复波浪可见性
+            WaveCanvas.Visibility = prevWaveVisibility;
         }
     }
 }

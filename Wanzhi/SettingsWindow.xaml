@@ -36,19 +36,6 @@
                             </StackPanel>
                         </GroupBox>
 
-                        <!-- 壁纸模式 -->
-                        <GroupBox Header="壁纸" Padding="10" Margin="0,0,0,15">
-                            <StackPanel>
-                                <TextBlock Text="壁纸模式:" Margin="0,0,0,5"/>
-                                <ComboBox x:Name="WallpaperModeComboBox"
-                                         Margin="0,0,0,10"
-                                         IsEnabled="False"
-                                         SelectionChanged="WallpaperModeComboBox_SelectionChanged">
-                                    <ComboBoxItem Content="静态壁纸" Tag="Static"/>
-                                </ComboBox>
-                            </StackPanel>
-                        </GroupBox>
-
                         <!-- 背景设置 -->
                         <GroupBox Header="背景" Padding="10" Margin="0,0,0,15">
                             <StackPanel>
@@ -64,20 +51,6 @@
                                        Content="选择波浪颜色" 
                                        Click="WaveColorPickerButton_Click"
                                        Padding="10,5"/>
-                                
-                                <CheckBox x:Name="EnableWaveCheckBox"
-                                         Content="启用波浪动画"
-                                         Margin="0,10,0,0"
-                                         IsChecked="True"
-                                         Checked="EnableWaveCheckBox_Changed"
-                                         Unchecked="EnableWaveCheckBox_Changed"/>
-
-                                <TextBlock x:Name="WaveCpuHintText"
-                                           Text="提示：动态壁纸下启用波浪动画会增加 CPU 占用"
-                                           Margin="0,4,0,0"
-                                           FontSize="10"
-                                           Foreground="Gray"
-                                           TextWrapping="Wrap"/>
                             </StackPanel>
                         </GroupBox>
                     </StackPanel>

@@ -3,7 +3,6 @@ using System.Threading;
 using System.Windows;
 using Hardcodet.Wpf.TaskbarNotification;
 using Wanzhi.Settings;
-using Wanzhi.SystemIntegration;
 
 namespace Wanzhi;
 
@@ -50,13 +49,6 @@ public partial class App : Application
             this.MainWindow = _mainWindow; // 设置为主窗口，防止程序自动退出
             // 不要立即调用 Hide()，让 Window_Loaded 有机会触发
             Log("MainWindow created.");
-            AppSettings.Instance.PropertyChanged += (s, ev) =>
-            {
-                if (ev.PropertyName == nameof(AppSettings.WallpaperMode) && AppSettings.Instance.WallpaperMode == WallpaperMode.Dynamic)
-                {
-                    Dispatcher.BeginInvoke(new Action(() => _mainWindow?.EnsureDynamicActive()));
-                }
-            };
 
             // 初始化系统托盘图标
             _trayIcon = (TaskbarIcon)FindResource("TrayIcon");
@@ -152,45 +144,9 @@ public partial class App : Application
             Log("ShowMainWindow called.");
             if (_mainWindow != null)
             {
-                var settings = AppSettings.Instance;
-
-                if (settings.WallpaperMode == WallpaperMode.Dynamic)
-                {
-                    Log("Using Dynamic Wallpaper Mode.");
-
-                    // 确保窗口初始化完成
-                    if (!_mainWindow.IsLoaded)
-                    {
-                        _mainWindow.Show();
-                    }
-                    else
-                    {
-                        _mainWindow.Show();
-                    }
-
-                    // 尝试将窗口嵌入桌面
-                    var attached = DesktopHost.Attach(_mainWindow);
-                    if (!attached)
-                    {
-                        Log("DesktopHost.Attach failed, falling back to static wallpaper mode.");
-                        settings.WallpaperMode = WallpaperMode.Static;
-                        await _mainWindow.ApplyAsWallpaperAsync();
-                    }
-                    else
-                    {
-                        // 确保动态壁纸资源与动画正确启动
-                        _mainWindow.EnsureDynamicActive();
-                    }
-                }
-                else
-                {
-                    Log("Using Static Wallpaper Mode.");
-                    // 切换回静态壁纸前，确保从桌面宿主中移除动态窗口
-                    DesktopHost.Detach(_mainWindow);
-                    _mainWindow.Hide();
-                    // 应用为壁纸（包含显示逻辑）
-                    await _mainWindow.ApplyAsWallpaperAsync();
-                }
+                Log("Applying static wallpaper.");
+                _mainWindow.Hide();
+                await _mainWindow.ApplyAsWallpaperAsync();
 
                 _mainWindow.Activate();
                 Log("MainWindow wallpaper applied or attached and activated.");

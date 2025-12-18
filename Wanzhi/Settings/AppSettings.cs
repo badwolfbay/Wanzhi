@@ -36,27 +36,6 @@ namespace Wanzhi.Settings
             set { _backgroundColor = value; OnPropertyChanged(); }
         }
 
-        // 壁纸模式（静态图片 / 动态壁纸）
-        private WallpaperMode _wallpaperMode = WallpaperMode.Static;
-        public WallpaperMode WallpaperMode
-        {
-            get => _wallpaperMode;
-            set
-            {
-                // 暂时移除动态壁纸：无论外部赋值为何，始终保持静态模式
-                _wallpaperMode = WallpaperMode.Static;
-                OnPropertyChanged();
-            }
-        }
-
-        // 启用波浪动画（在预览窗口或动态模式下生效）
-        private bool _enableWaveAnimation = true;
-        public bool EnableWaveAnimation
-        {
-            get => _enableWaveAnimation;
-            set { _enableWaveAnimation = value; OnPropertyChanged(); }
-        }
-
         // 波浪颜色 (ARGB 格式)
         private string _waveColor = "#FF26A69A"; // Teal / Fresh Green
         public string WaveColor
@@ -217,11 +196,6 @@ namespace Wanzhi.Settings
                     var settings = JsonConvert.DeserializeObject<AppSettings>(json);
                     if (settings != null)
                     {
-                        // 兼容旧配置：曾保存为 Dynamic 时，启动时强制回退到 Static
-                        if (settings._wallpaperMode != WallpaperMode.Static)
-                        {
-                            settings._wallpaperMode = WallpaperMode.Static;
-                        }
                         return settings;
                     }
                 }
@@ -243,22 +217,6 @@ namespace Wanzhi.Settings
         Light,
         Dark,
         System
-    }
-
-    /// <summary>
-    /// 壁纸模式
-    /// </summary>
-    public enum WallpaperMode
-    {
-        /// <summary>
-        /// 生成静态图片并设置为系统壁纸
-        /// </summary>
-        Static,
-
-        /// <summary>
-        /// 将窗口嵌入桌面作为动态壁纸（后续实现）
-        /// </summary>
-        Dynamic
     }
 
     /// <summary>
