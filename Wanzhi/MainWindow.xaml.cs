@@ -906,12 +906,19 @@ public partial class MainWindow : Window
                             WaveCanvas.UpdateLayout();
                             if (_waveRenderer != null)
                             {
+                                unchecked
+                                {
+                                    var hash = monitorId != null ? monitorId.GetHashCode() : (int)i;
+                                    var phaseOffset = (hash % 1000) / 1000.0 * Math.PI * 2.0;
+                                    _waveRenderer.SetVariationOffset(phaseOffset);
+                                }
                                 var waveWidth = WaveCanvas.ActualWidth > 0
                                     ? WaveCanvas.ActualWidth
                                     : (rootElement.ActualWidth > 0 ? rootElement.ActualWidth : logicalWidth);
                                 App.Log($"Wave regen width: {waveWidth}, canvas actual: {WaveCanvas.ActualWidth}x{WaveCanvas.ActualHeight}, root actual: {rootElement.ActualWidth}x{rootElement.ActualHeight}, logical: {logicalWidth}x{logicalHeight}");
                                 _waveRenderer.SetCanvasSize(waveWidth, WaveCanvas.Height);
                                 _waveRenderer.Update(0);
+                                _waveRenderer.SetVariationOffset(0);
                             }
 
                             rootElement.UpdateLayout();
@@ -936,7 +943,7 @@ public partial class MainWindow : Window
 
                             ReplaceFile(tempWallpaperPath, finalWallpaperPath);
 
-                            monitorWallpapers.Add((monitorId, finalWallpaperPath));
+                            monitorWallpapers.Add((monitorId ?? string.Empty, finalWallpaperPath));
                         }
                         catch
                         {

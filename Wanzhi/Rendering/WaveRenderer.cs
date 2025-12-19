@@ -12,6 +12,7 @@ namespace Wanzhi.Rendering
     {
         private readonly Path[] _wavePaths;
         private double _animationOffset = 0;
+        private double _variationOffset = 0;
         private double _canvasWidth;
         private double _canvasHeight;
 
@@ -57,6 +58,11 @@ namespace Wanzhi.Rendering
             _canvasWidth = width;
             _canvasHeight = height;
             Update(0);
+        }
+
+        public void SetVariationOffset(double offset)
+        {
+            _variationOffset = offset;
         }
 
         /// <summary>
@@ -130,7 +136,7 @@ namespace Wanzhi.Rendering
             
             double amplitude = 40 + factor * 40; // 40 -> 80
             double frequency = 0.002 + waveIndex * 0.0005; 
-            double phase = _animationOffset + waveIndex * 1.5; 
+            double phase = _animationOffset + waveIndex * 1.5 + _variationOffset; 
             
             // 基准线：从屏幕中间开始，向下延伸
             double baseY = _canvasHeight * (0.5 + 0.1 * waveIndex); 
