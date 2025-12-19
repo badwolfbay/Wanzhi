@@ -19,9 +19,27 @@ namespace Wanzhi.SystemIntegration
             return _wallpaper.GetMonitorDevicePathAt(index);
         }
 
+        public bool TryGetMonitorRect(string monitorId, out RECT rect)
+        {
+            try
+            {
+                _wallpaper.GetMonitorRECT(monitorId, out rect);
+                return true;
+            }
+            catch
+            {
+                rect = default;
+                return false;
+            }
+        }
+
         public RECT GetMonitorRect(string monitorId)
         {
-            _wallpaper.GetMonitorRECT(monitorId, out var rect);
+            if (!TryGetMonitorRect(monitorId, out var rect))
+            {
+                return default;
+            }
+
             return rect;
         }
 
@@ -43,8 +61,12 @@ namespace Wanzhi.SystemIntegration
             {
             }
 
-            var rect = GetMonitorRect(monitorId);
-            return (rect.Width, rect.Height);
+            if (TryGetMonitorRect(monitorId, out var rect))
+            {
+                return (rect.Width, rect.Height);
+            }
+
+            return (0, 0);
         }
 
         public (double ScaleX, double ScaleY) GetMonitorDpiScale(string monitorId)
@@ -52,7 +74,10 @@ namespace Wanzhi.SystemIntegration
             var hmonitor = TryGetHMonitorByDeviceName(monitorId);
             if (hmonitor == IntPtr.Zero)
             {
-                var rect = GetMonitorRect(monitorId);
+                if (!TryGetMonitorRect(monitorId, out var rect))
+                {
+                    return (1.0, 1.0);
+                }
                 var nativeRect = new NativeRect
                 {
                     Left = rect.Left,
