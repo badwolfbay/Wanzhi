@@ -851,9 +851,6 @@ public partial class MainWindow : Window
         _ = LoadPoetryAsync();
     }
 
-    /// <summary>
-    /// 生成图片并设置为系统壁纸
-    /// </summary>
     public async System.Threading.Tasks.Task ApplyAsWallpaperAsync(bool silent = false)
     {
         System.Threading.Interlocked.Increment(ref _diagApplyWallpaperCalls);
@@ -862,13 +859,15 @@ public partial class MainWindow : Window
 
         void ReplaceFile(string tempPath, string finalPath)
         {
-            if (File.Exists(finalPath))
+            try
             {
-                File.Replace(tempPath, finalPath, null, ignoreMetadataErrors: true);
+                Directory.CreateDirectory(Path.GetDirectoryName(finalPath) ?? string.Empty);
+                File.Move(tempPath, finalPath, overwrite: true);
             }
-            else
+            catch
             {
-                File.Move(tempPath, finalPath);
+                File.Copy(tempPath, finalPath, overwrite: true);
+                try { File.Delete(tempPath); } catch { }
             }
         }
 
@@ -888,8 +887,32 @@ public partial class MainWindow : Window
             }
 
             var desktopWallpaper = new DesktopWallpaperManager();
-            App.Log($"Multi-monitor detected: count={desktopWallpaper.MonitorCount}");
-            if (desktopWallpaper.MonitorCount > 1)
+            var distinctMonitorRects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (uint i = 0; i < desktopWallpaper.MonitorCount; i++)
+            {
+                try
+                {
+                    var monitorId = desktopWallpaper.GetMonitorDevicePathAt(i);
+                    if (string.IsNullOrWhiteSpace(monitorId))
+                    {
+                        continue;
+                    }
+
+                    var rect = desktopWallpaper.GetMonitorRect(monitorId);
+                    if (rect.Width <= 0 || rect.Height <= 0)
+                    {
+                        continue;
+                    }
+
+                    distinctMonitorRects.Add($"{rect.Left},{rect.Top},{rect.Right},{rect.Bottom}");
+                }
+                catch
+                {
+                }
+            }
+
+            App.Log($"Multi-monitor detected: count={desktopWallpaper.MonitorCount}, distinctRects={distinctMonitorRects.Count}");
+            if (distinctMonitorRects.Count > 1)
             {
                 desktopWallpaper.SetPosition(DesktopWallpaperManager.DESKTOP_WALLPAPER_POSITION.Fill);
 
