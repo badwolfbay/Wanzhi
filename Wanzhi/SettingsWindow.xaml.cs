@@ -1,12 +1,144 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using Newtonsoft.Json;
 using Wanzhi.Settings;
 using Wanzhi.SystemIntegration;
 
 namespace Wanzhi
 {
+    public sealed class TraditionalColor
+    {
+        [JsonProperty("hex")]
+        public string? Hex { get; set; }
+
+        [JsonProperty("name")]
+        public string? Name { get; set; }
+
+        [JsonProperty("pinyin")]
+        public string? Pinyin { get; set; }
+
+        [JsonProperty("lightSuitable")]
+        public bool LightSuitable { get; set; }
+
+        [JsonProperty("darkSuitable")]
+        public bool DarkSuitable { get; set; }
+
+        public override string ToString() => $"{Name} ({Pinyin}) {Hex}";
+    }
+
+    public static class TraditionalColorPalette
+    {
+        private static IReadOnlyList<TraditionalColor>? _cached;
+
+        public static IReadOnlyList<TraditionalColor> GetAll()
+        {
+            if (_cached != null) return _cached;
+
+            var candidates = new List<string>();
+            try
+            {
+                candidates.Add(Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "Wanzhi",
+                    "traditional_colors.json"
+                ));
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                candidates.Add(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "traditional_colors.json"));
+            }
+            catch
+            {
+            }
+
+            foreach (var path in candidates.Distinct())
+            {
+                try
+                {
+                    if (!File.Exists(path)) continue;
+                    var json = File.ReadAllText(path);
+                    var parsed = JsonConvert.DeserializeObject<List<TraditionalColor>>(json);
+                    if (parsed == null) continue;
+
+                    var normalized = parsed
+                        .Where(c => !string.IsNullOrWhiteSpace(c.Hex))
+                        .Select(c =>
+                        {
+                            c.Hex = NormalizeHex(c.Hex!);
+                            return c;
+                        })
+                        .Where(c => c.Hex != null)
+                        .ToList();
+
+                    if (normalized.Count > 0)
+                    {
+                        _cached = normalized;
+                        return _cached;
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            _cached = new List<TraditionalColor>
+            {
+                new TraditionalColor { Name = "乳白", Pinyin = "rubai", Hex = "#f9f4dc", LightSuitable = false, DarkSuitable = true },
+                new TraditionalColor { Name = "孔雀绿", Pinyin = "kongquelv", Hex = "#229453", LightSuitable = true, DarkSuitable = true },
+                new TraditionalColor { Name = "胭脂红", Pinyin = "yanzhihong", Hex = "#f03f24", LightSuitable = true, DarkSuitable = true },
+                new TraditionalColor { Name = "景泰蓝", Pinyin = "jingtailan", Hex = "#2775b6", LightSuitable = true, DarkSuitable = false }
+            };
+            return _cached;
+        }
+
+        public static string? NormalizeHex(string hex)
+        {
+            var h = hex.Trim();
+            if (!h.StartsWith("#")) h = "#" + h;
+            if (h.Length == 4)
+            {
+                var r = h[1];
+                var g = h[2];
+                var b = h[3];
+                return $"#{r}{r}{g}{g}{b}{b}";
+            }
+            if (h.Length == 7) return h;
+            if (h.Length == 9) return h;
+            return null;
+        }
+
+        public static Color? TryParseToMediaColor(string? hex)
+        {
+            if (string.IsNullOrWhiteSpace(hex)) return null;
+            try
+            {
+                var normalized = NormalizeHex(hex);
+                if (normalized == null) return null;
+
+                if (normalized.Length == 7)
+                {
+                    var withAlpha = "#FF" + normalized.Substring(1);
+                    return (Color)ColorConverter.ConvertFromString(withAlpha);
+                }
+
+                return (Color)ColorConverter.ConvertFromString(normalized);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+    }
+
     /// <summary>
     /// 设置窗口
     /// </summary>
@@ -179,6 +311,16 @@ namespace Wanzhi
                     ? Colors.Black 
                     : Colors.White
             );
+
+            if (TraditionalWaveColorPickerButton != null)
+            {
+                TraditionalWaveColorPickerButton.Background = new SolidColorBrush(_selectedWaveColor);
+                TraditionalWaveColorPickerButton.Foreground = new SolidColorBrush(
+                    (_selectedWaveColor.R * 0.299 + _selectedWaveColor.G * 0.587 + _selectedWaveColor.B * 0.114) > 128 
+                        ? Colors.Black 
+                        : Colors.White
+                );
+            }
         }
 
         private void ThemeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -213,7 +355,28 @@ namespace Wanzhi
 
         private void WaveColorPickerButton_Click(object sender, RoutedEventArgs e)
         {
-            var colorDialog = new ColorSelectionDialog(_selectedWaveColor);
+            var colorDialog = new ColorSelectionDialog(
+                _selectedWaveColor,
+                enableTraditionalColors: false
+            );
+            if (colorDialog.ShowDialog() == true)
+            {
+                _selectedWaveColor = colorDialog.SelectedColor;
+                UpdateWaveColorButtonBackground();
+                _settings.WaveColor = _selectedWaveColor.ToString();
+            }
+        }
+
+        private void TraditionalWaveColorPickerButton_Click(object sender, RoutedEventArgs e)
+        {
+            var traditionalColors = TraditionalColorPalette.GetAll();
+            var colorDialog = new ColorSelectionDialog(
+                _selectedWaveColor,
+                enableTraditionalColors: true,
+                traditionalOnly: true,
+                traditionalColors: traditionalColors,
+                getIsDarkTheme: () => (_selectedColor.R * 0.299 + _selectedColor.G * 0.587 + _selectedColor.B * 0.114) < 128
+            );
             if (colorDialog.ShowDialog() == true)
             {
                 _selectedWaveColor = colorDialog.SelectedColor;
@@ -414,9 +577,19 @@ namespace Wanzhi
         public System.Windows.Media.Color SelectedColor { get; private set; }
         private readonly List<Button> _allColorButtons = new List<Button>();
 
-        public ColorSelectionDialog(System.Windows.Media.Color currentColor)
+        private readonly bool _enableTraditionalColors;
+        private readonly bool _traditionalOnly;
+        private readonly IReadOnlyList<TraditionalColor> _traditionalColors;
+        private readonly Func<bool>? _getIsDarkTheme;
+
+        public ColorSelectionDialog(
+            System.Windows.Media.Color currentColor,
+            bool enableTraditionalColors = false,
+            bool traditionalOnly = false,
+            IReadOnlyList<TraditionalColor>? traditionalColors = null,
+            Func<bool>? getIsDarkTheme = null)
         {
-            Title = "选择颜色";
+            Title = traditionalOnly ? "选择传统色" : "选择颜色";
             Width = 420;
             Height = 520;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -424,8 +597,21 @@ namespace Wanzhi
 
             SelectedColor = currentColor;
 
-            var mainPanel = new StackPanel { Margin = new Thickness(10) };
-            Content = mainPanel;
+            _enableTraditionalColors = enableTraditionalColors;
+            _traditionalOnly = traditionalOnly;
+            _traditionalColors = traditionalColors ?? Array.Empty<TraditionalColor>();
+            _getIsDarkTheme = getIsDarkTheme;
+
+            var scrollViewer = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Padding = new Thickness(10)
+            };
+
+            var mainPanel = new StackPanel();
+            scrollViewer.Content = mainPanel;
+            Content = scrollViewer;
             
             // 显示加载提示
             var loadingText = new TextBlock 
@@ -449,6 +635,12 @@ namespace Wanzhi
 
         private void BuildColorPickers(StackPanel mainPanel, System.Windows.Media.Color currentColor)
         {
+            if (_traditionalOnly)
+            {
+                BuildTraditionalOnly(mainPanel, currentColor);
+                return;
+            }
+
             // 浅色区域
             mainPanel.Children.Add(new TextBlock { Text = "浅色 / 背景色", Margin = new Thickness(0,0,0,5), FontWeight = FontWeights.Bold });
             
@@ -475,6 +667,59 @@ namespace Wanzhi
             };
             AddColorButtons(darkColorsPanel, darkColors, currentColor);
             mainPanel.Children.Add(darkColorsPanel);
+
+            if (_enableTraditionalColors && _traditionalColors.Count > 0)
+            {
+                var traditionalTitlePanel = new DockPanel { Margin = new Thickness(0, 10, 0, 5) };
+                var traditionalTitle = new TextBlock { Text = "传统色", FontWeight = FontWeights.Bold };
+                DockPanel.SetDock(traditionalTitle, Dock.Left);
+                traditionalTitlePanel.Children.Add(traditionalTitle);
+
+                var randomButton = new Button
+                {
+                    Content = "随机传统色",
+                    Padding = new Thickness(8, 4, 8, 4),
+                    HorizontalAlignment = HorizontalAlignment.Right
+                };
+                DockPanel.SetDock(randomButton, Dock.Right);
+                traditionalTitlePanel.Children.Add(randomButton);
+
+                mainPanel.Children.Add(traditionalTitlePanel);
+
+                var isDarkTheme = _getIsDarkTheme?.Invoke() ?? false;
+                var pool = _traditionalColors
+                    .Where(c => TraditionalColorPalette.TryParseToMediaColor(c.Hex) != null)
+                    .Where(c => isDarkTheme ? c.DarkSuitable : c.LightSuitable)
+                    .ToList();
+                if (pool.Count == 0)
+                {
+                    pool = _traditionalColors
+                        .Where(c => TraditionalColorPalette.TryParseToMediaColor(c.Hex) != null)
+                        .ToList();
+                }
+
+                var panel = new WrapPanel();
+                AddTraditionalColorButtons(panel, pool, currentColor);
+                mainPanel.Children.Add(panel);
+
+                randomButton.Click += (s, e) =>
+                {
+                    if (pool.Count == 0) return;
+                    var idx = Random.Shared.Next(0, pool.Count);
+                    var picked = pool[idx];
+                    var pickedColor = TraditionalColorPalette.TryParseToMediaColor(picked.Hex);
+                    if (pickedColor == null) return;
+
+                    foreach (var btn in _allColorButtons)
+                    {
+                        btn.BorderBrush = Brushes.LightGray;
+                    }
+
+                    SelectedColor = pickedColor.Value;
+                    DialogResult = true;
+                    Close();
+                };
+            }
 
             // 自定义颜色输入区域
             mainPanel.Children.Add(new TextBlock { Text = "自定义颜色", Margin = new Thickness(0,15,0,5), FontWeight = FontWeights.Bold });
@@ -584,6 +829,70 @@ namespace Wanzhi
             });
         }
 
+        private void BuildTraditionalOnly(StackPanel mainPanel, System.Windows.Media.Color currentColor)
+        {
+            if (!_enableTraditionalColors || _traditionalColors.Count == 0)
+            {
+                mainPanel.Children.Add(new TextBlock
+                {
+                    Text = "未找到传统色数据",
+                    Margin = new Thickness(0, 0, 0, 10),
+                    Foreground = Brushes.Gray
+                });
+                return;
+            }
+
+            var traditionalTitlePanel = new DockPanel { Margin = new Thickness(0, 0, 0, 5) };
+            var traditionalTitle = new TextBlock { Text = "传统色", FontWeight = FontWeights.Bold };
+            DockPanel.SetDock(traditionalTitle, Dock.Left);
+            traditionalTitlePanel.Children.Add(traditionalTitle);
+
+            var randomButton = new Button
+            {
+                Content = "随机传统色",
+                Padding = new Thickness(8, 4, 8, 4),
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            DockPanel.SetDock(randomButton, Dock.Right);
+            traditionalTitlePanel.Children.Add(randomButton);
+
+            mainPanel.Children.Add(traditionalTitlePanel);
+
+            var isDarkTheme = _getIsDarkTheme?.Invoke() ?? false;
+            var pool = _traditionalColors
+                .Where(c => TraditionalColorPalette.TryParseToMediaColor(c.Hex) != null)
+                .Where(c => isDarkTheme ? c.DarkSuitable : c.LightSuitable)
+                .ToList();
+            if (pool.Count == 0)
+            {
+                pool = _traditionalColors
+                    .Where(c => TraditionalColorPalette.TryParseToMediaColor(c.Hex) != null)
+                    .ToList();
+            }
+
+            var panel = new WrapPanel();
+            AddTraditionalColorButtons(panel, pool, currentColor);
+            mainPanel.Children.Add(panel);
+
+            randomButton.Click += (s, e) =>
+            {
+                if (pool.Count == 0) return;
+                var idx = Random.Shared.Next(0, pool.Count);
+                var picked = pool[idx];
+                var pickedColor = TraditionalColorPalette.TryParseToMediaColor(picked.Hex);
+                if (pickedColor == null) return;
+
+                foreach (var btn in _allColorButtons)
+                {
+                    btn.BorderBrush = Brushes.LightGray;
+                }
+
+                SelectedColor = pickedColor.Value;
+                DialogResult = true;
+                Close();
+            };
+        }
+
         private void AddColorButtons(Panel panel, string[] colors, System.Windows.Media.Color currentColor)
         {
             foreach (var colorStr in colors)
@@ -611,6 +920,44 @@ namespace Wanzhi
                     // Highlight the clicked button
                     button.BorderBrush = Brushes.Black;
                     
+                    SelectedColor = color;
+                    DialogResult = true;
+                    Close();
+                };
+
+                _allColorButtons.Add(button);
+                panel.Children.Add(button);
+            }
+        }
+
+        private void AddTraditionalColorButtons(Panel panel, List<TraditionalColor> colors, System.Windows.Media.Color currentColor)
+        {
+            foreach (var c in colors)
+            {
+                var parsed = TraditionalColorPalette.TryParseToMediaColor(c.Hex);
+                if (parsed == null) continue;
+                var color = parsed.Value;
+
+                var button = new Button
+                {
+                    Width = 40,
+                    Height = 40,
+                    Margin = new Thickness(3),
+                    Background = new SolidColorBrush(color),
+                    BorderThickness = new Thickness(2),
+                    BorderBrush = color == currentColor ? Brushes.Black : Brushes.LightGray,
+                    Tag = color,
+                    ToolTip = c.ToString()
+                };
+
+                button.Click += (s, e) =>
+                {
+                    foreach (var btn in _allColorButtons)
+                    {
+                        btn.BorderBrush = Brushes.LightGray;
+                    }
+
+                    button.BorderBrush = Brushes.Black;
                     SelectedColor = color;
                     DialogResult = true;
                     Close();

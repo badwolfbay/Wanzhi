@@ -21,4 +21,10 @@
     <Resource Include="Resources\logo.png" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="traditional_colors.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

@@ -47,10 +47,25 @@
                                        Margin="0,0,0,10"/>
 
                                 <TextBlock Text="波浪颜色:" Margin="0,0,0,5"/>
-                                <Button x:Name="WaveColorPickerButton" 
-                                       Content="选择波浪颜色" 
-                                       Click="WaveColorPickerButton_Click"
-                                       Padding="10,5"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Button x:Name="WaveColorPickerButton" 
+                                           Grid.Column="0"
+                                           Content="选择波浪颜色" 
+                                           Click="WaveColorPickerButton_Click"
+                                           Padding="10,5"
+                                           Margin="0,0,10,0"/>
+
+                                    <Button x:Name="TraditionalWaveColorPickerButton"
+                                           Grid.Column="1"
+                                           Content="选择传统色"
+                                           Click="TraditionalWaveColorPickerButton_Click"
+                                           Padding="10,5"/>
+                                </Grid>
                             </StackPanel>
                         </GroupBox>
                     </StackPanel>
