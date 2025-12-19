@@ -232,7 +232,47 @@ public partial class MainWindow : Window
             App.Log($"诗词加载成功: {poetry.Content.Substring(0, Math.Min(5, poetry.Content.Length))}...");
             _currentPoetry = poetry;
             UpdatePoetryDisplay(poetry);
-            _ = QueueApplyWallpaperAsync();
+
+            var settings = AppSettings.Instance;
+            var randomizedWaveColor = false;
+            if (settings.RandomTraditionalWaveColorOnRefresh)
+            {
+                try
+                {
+                    var isDarkTheme = _isDarkTheme;
+                    var all = TraditionalColorPalette.GetAll();
+                    var pool = all
+                        .Where(c => c.Hex != null)
+                        .Where(c => TraditionalColorPalette.TryParseToMediaColor(c.Hex!) != null)
+                        .Where(c => isDarkTheme ? c.DarkSuitable : c.LightSuitable)
+                        .ToList();
+
+                    if (pool.Count == 0)
+                    {
+                        pool = all
+                            .Where(c => c.Hex != null)
+                            .Where(c => TraditionalColorPalette.TryParseToMediaColor(c.Hex!) != null)
+                            .ToList();
+                    }
+
+                    if (pool.Count > 0)
+                    {
+                        var picked = pool[Random.Shared.Next(0, pool.Count)];
+                        settings.WaveColor = picked.Hex!;
+                        settings.Save();
+                        randomizedWaveColor = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    App.Log($"随机传统色波浪失败: {ex.Message}");
+                }
+            }
+
+            if (!randomizedWaveColor)
+            {
+                _ = QueueApplyWallpaperAsync();
+            }
         }
     }
 

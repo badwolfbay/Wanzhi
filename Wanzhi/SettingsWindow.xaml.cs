@@ -276,6 +276,11 @@ namespace Wanzhi
             AuthorFontSizeSlider.Value = _settings.AuthorFontSize;
             RefreshIntervalSlider.Value = _settings.RefreshIntervalMinutes;
 
+            if (RandomTraditionalWaveColorOnRefreshCheckBox != null)
+            {
+                RandomTraditionalWaveColorOnRefreshCheckBox.IsChecked = _settings.RandomTraditionalWaveColorOnRefresh;
+            }
+
             // 加载字符间距设置
             PoetryCharacterSpacingSlider.Value = _settings.PoetryCharacterSpacing;
             PoetryVerticalCharacterSpacingSlider.Value = _settings.PoetryVerticalCharacterSpacing;
@@ -291,6 +296,12 @@ namespace Wanzhi
 
             // 加载系统设置
             AutoStartCheckBox.IsChecked = StartupManager.IsStartupEnabled();
+        }
+
+        private void RandomTraditionalWaveColorOnRefreshCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_settings == null) return;
+            _settings.RandomTraditionalWaveColorOnRefresh = RandomTraditionalWaveColorOnRefreshCheckBox.IsChecked == true;
         }
 
         private void UpdateColorButtonBackground()

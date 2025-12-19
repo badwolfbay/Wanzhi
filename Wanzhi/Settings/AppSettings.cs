@@ -138,6 +138,14 @@ namespace Wanzhi.Settings
             set { _refreshIntervalMinutes = value; OnPropertyChanged(); }
         }
 
+        // 刷新诗词时随机传统色波浪线
+        private bool _randomTraditionalWaveColorOnRefresh = false;
+        public bool RandomTraditionalWaveColorOnRefresh
+        {
+            get => _randomTraditionalWaveColorOnRefresh;
+            set { _randomTraditionalWaveColorOnRefresh = value; OnPropertyChanged(); }
+        }
+
         // 开机自启
         private bool _autoStart = false;
         public bool AutoStart
