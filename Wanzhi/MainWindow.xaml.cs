@@ -1089,7 +1089,8 @@ public partial class MainWindow : Window
                 App.Log($"壁纸图片已保存: {wallpaperPath}");
 
                 // 4. 设置为系统壁纸
-                int result = SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, wallpaperPath, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+                var winIni = SPIF_UPDATEINIFILE | (silent ? 0 : SPIF_SENDCHANGE);
+                int result = SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, wallpaperPath, winIni);
 
                 if (result != 0)
                 {

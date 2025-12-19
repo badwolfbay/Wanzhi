@@ -148,8 +148,7 @@ public partial class App : Application
                 _mainWindow.Hide();
                 await _mainWindow.ApplyAsWallpaperAsync();
 
-                _mainWindow.Activate();
-                Log("MainWindow wallpaper applied or attached and activated.");
+                Log("MainWindow wallpaper applied or attached.");
             }
             else
             {
