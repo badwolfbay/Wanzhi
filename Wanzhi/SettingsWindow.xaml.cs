@@ -222,6 +222,18 @@ namespace Wanzhi
                 _ => 2
             };
 
+            // 加载背景效果
+            if (BackgroundEffectComboBox != null)
+            {
+                BackgroundEffectComboBox.SelectedIndex = _settings.BackgroundEffect switch
+                {
+                    BackgroundEffectType.Wave => 0,
+                    BackgroundEffectType.Bubbles => 1,
+                    BackgroundEffectType.Blobs => 2,
+                    _ => 0
+                };
+            }
+
             // 加载背景颜色
             _selectedColor = (System.Windows.Media.Color)ColorConverter.ConvertFromString(_settings.BackgroundColor);
             UpdateColorButtonBackground();
@@ -347,6 +359,21 @@ namespace Wanzhi
                     "Dark" => ThemeMode.Dark,
                     "System" => ThemeMode.System,
                     _ => ThemeMode.System
+                };
+            }
+        }
+
+        private void BackgroundEffectComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_settings == null) return;
+
+            if (BackgroundEffectComboBox.SelectedItem is ComboBoxItem item)
+            {
+                _settings.BackgroundEffect = item.Tag?.ToString() switch
+                {
+                    "Bubbles" => BackgroundEffectType.Bubbles,
+                    "Blobs" => BackgroundEffectType.Blobs,
+                    _ => BackgroundEffectType.Wave
                 };
             }
         }

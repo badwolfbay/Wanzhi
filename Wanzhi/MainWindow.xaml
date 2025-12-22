@@ -24,7 +24,7 @@
         </Rectangle>
         
         <!-- 波浪动画层 (底部) -->
-        <Canvas x:Name="WaveCanvas" ClipToBounds="True" VerticalAlignment="Bottom" Height="400"/>
+        <Canvas x:Name="WaveCanvas" ClipToBounds="True" VerticalAlignment="Stretch"/>
         
         <!-- 诗词显示层 -->
         <Grid x:Name="PoetryGrid" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="100">

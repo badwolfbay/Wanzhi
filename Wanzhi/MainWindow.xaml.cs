@@ -23,19 +23,20 @@ namespace Wanzhi;
 public partial class MainWindow : Window
 {
     private readonly JinrishiciService _poetryService;
-    private WaveRenderer? _waveRenderer;
+    private IBackgroundEffectRenderer? _backgroundEffectRenderer;
     private readonly DispatcherTimer _poetryRefreshTimer;
     private readonly DispatcherTimer _diagTimer;
     private readonly ThemeDetector _themeDetector;
     private bool _isDarkTheme;
     private bool _startupPoetryRetryScheduled;
 
+    private double _waveVariationOffset;
+
     private long _diagPoetryRefreshTicks;
     private long _diagSettingsChanged;
     private long _diagLoadPoetryCalls;
     private long _diagUpdatePoetryUiCalls;
     private long _diagApplyThemeCalls;
-
     private long _diagApplyWallpaperCalls;
 
     private CancellationTokenSource? _applyWallpaperCts;
@@ -98,7 +99,7 @@ public partial class MainWindow : Window
         // 应用当前主题
         ApplyTheme();
 
-        InitializeWaveRenderer();
+        InitializeBackgroundEffectRenderer();
         WaveCanvas.Visibility = Visibility.Collapsed;
 
         // 加载诗词（后台异步，不阻塞启动）
@@ -142,28 +143,57 @@ public partial class MainWindow : Window
         _diagTimer.Stop();
     }
 
-    private void InitializeWaveRenderer()
+    private void InitializeBackgroundEffectRenderer()
     {
-        if (_waveRenderer != null) return;
-
         var width = SystemParameters.PrimaryScreenWidth;
-        // WaveCanvas 在 XAML 中高度固定为 400，且 VerticalAlignment="Bottom"
-        // 所以渲染器的高度必须匹配 Canvas 的高度，否则波浪会被画在 Canvas 之外
-        var height = 400.0;
+        var effect = AppSettings.Instance.BackgroundEffect;
 
-        _waveRenderer = new WaveRenderer(width, height, 5); // 5层波浪
-
-        // 添加波浪路径到画布
-        foreach (var path in _waveRenderer.GetWavePaths())
+        // Wave uses a bottom strip, other effects fill the entire screen.
+        if (effect == BackgroundEffectType.Wave)
         {
-            WaveCanvas.Children.Add(path);
+            WaveCanvas.VerticalAlignment = VerticalAlignment.Bottom;
+            WaveCanvas.Height = 400;
+        }
+        else
+        {
+            WaveCanvas.VerticalAlignment = VerticalAlignment.Stretch;
+            WaveCanvas.ClearValue(FrameworkElement.HeightProperty);
         }
 
-        // 初始应用颜色
+        var height = effect == BackgroundEffectType.Wave
+            ? 400.0
+            : (SystemParameters.PrimaryScreenHeight > 0 ? SystemParameters.PrimaryScreenHeight : 1080.0);
+
+        IBackgroundEffectRenderer renderer = effect switch
+        {
+            BackgroundEffectType.Bubbles => new BubblesRenderer(width, height, 12),
+            BackgroundEffectType.Blobs => new BlobsRenderer(width, height, 10),
+            _ => new WaveRenderer(width, height, 5)
+        };
+
+        _backgroundEffectRenderer = renderer;
+
+        WaveCanvas.Children.Clear();
+        foreach (var v in renderer.GetVisuals())
+        {
+            WaveCanvas.Children.Add(v);
+        }
+
         ApplyTheme();
 
         // 立即更新一次以生成初始形状，否则第一帧可能是空的
-        _waveRenderer.Update(0);
+        var variation = _backgroundEffectRenderer as IVariationOffsetRenderer;
+        if (effect == BackgroundEffectType.Wave && variation != null)
+        {
+            variation.SetVariationOffset(_waveVariationOffset);
+        }
+        _backgroundEffectRenderer.Update(0);
+    }
+
+    private void RebuildBackgroundEffectRenderer()
+    {
+        _backgroundEffectRenderer = null;
+        InitializeBackgroundEffectRenderer();
     }
 
     private PoetryData? _currentPoetry;
@@ -376,22 +406,22 @@ public partial class MainWindow : Window
             double luminance = (0.299 * bgColor.R + 0.587 * bgColor.G + 0.114 * bgColor.B);
             _isDarkTheme = luminance < 128; // 亮度低则是深色主题
 
-            // 应用波浪颜色
+            // 应用背景效果颜色
             try
             {
                 var waveBaseColor = (Color)ColorConverter.ConvertFromString(settings.WaveColor);
-                if (_waveRenderer != null)
+                if (_backgroundEffectRenderer != null)
                 {
-                    _waveRenderer.UpdateColor(waveBaseColor, _isDarkTheme);
+                    _backgroundEffectRenderer.UpdateColor(waveBaseColor, _isDarkTheme);
                 }
             }
             catch
             {
                 // 默认深蓝色
                 var defaultWaveColor = Color.FromRgb(57, 73, 171);
-                if (_waveRenderer != null)
+                if (_backgroundEffectRenderer != null)
                 {
-                    _waveRenderer.UpdateColor(defaultWaveColor, _isDarkTheme);
+                    _backgroundEffectRenderer.UpdateColor(defaultWaveColor, _isDarkTheme);
                 }
             }
 
@@ -756,22 +786,22 @@ public partial class MainWindow : Window
         double luminance = (0.299 * bgColor.R + 0.587 * bgColor.G + 0.114 * bgColor.B);
         _isDarkTheme = luminance < 128; // 亮度低则是深色主题
 
-        // 应用波浪颜色
+        // 应用背景效果颜色
         try
         {
             var waveBaseColor = (Color)ColorConverter.ConvertFromString(settings.WaveColor);
-            if (_waveRenderer != null)
+            if (_backgroundEffectRenderer != null)
             {
-                _waveRenderer.UpdateColor(waveBaseColor, _isDarkTheme);
+                _backgroundEffectRenderer.UpdateColor(waveBaseColor, _isDarkTheme);
             }
         }
         catch
         {
             // 默认深蓝色
             var defaultWaveColor = Color.FromRgb(57, 73, 171);
-            if (_waveRenderer != null)
+            if (_backgroundEffectRenderer != null)
             {
-                _waveRenderer.UpdateColor(defaultWaveColor, _isDarkTheme);
+                _backgroundEffectRenderer.UpdateColor(defaultWaveColor, _isDarkTheme);
             }
         }
     }
@@ -794,6 +824,27 @@ public partial class MainWindow : Window
         System.Threading.Interlocked.Increment(ref _diagSettingsChanged);
         switch (e.PropertyName)
         {
+            case nameof(AppSettings.BackgroundEffect):
+                RebuildBackgroundEffectRenderer();
+
+                if (AppSettings.Instance.BackgroundEffect == BackgroundEffectType.Wave)
+                {
+                    var variation = _backgroundEffectRenderer as IVariationOffsetRenderer;
+                    if (variation != null)
+                    {
+                        _waveVariationOffset = Random.Shared.NextDouble() * Math.PI * 2.0;
+                        variation.SetVariationOffset(_waveVariationOffset);
+                        _backgroundEffectRenderer?.Update(0);
+                    }
+                }
+
+                if (_currentPoetry != null)
+                {
+                    UpdatePoetryDisplay(_currentPoetry);
+                    await ApplyAsWallpaperAsync(silent: true);
+                }
+                break;
+
             case nameof(AppSettings.Theme):
             case nameof(AppSettings.BackgroundColor):
                 ApplyTheme();
@@ -881,9 +932,9 @@ public partial class MainWindow : Window
         try
         {
             WaveCanvas.Visibility = Visibility.Visible;
-            if (_waveRenderer == null)
+            if (_backgroundEffectRenderer == null)
             {
-                InitializeWaveRenderer();
+                InitializeBackgroundEffectRenderer();
             }
 
             var desktopWallpaper = new DesktopWallpaperManager();
@@ -967,21 +1018,25 @@ public partial class MainWindow : Window
                             WaveCanvas.ClearValue(FrameworkElement.WidthProperty);
                             WaveCanvas.HorizontalAlignment = HorizontalAlignment.Stretch;
                             WaveCanvas.UpdateLayout();
-                            if (_waveRenderer != null)
+
+                            if (_backgroundEffectRenderer != null)
                             {
-                                unchecked
+                                var waveVariation = (_backgroundEffectRenderer as IVariationOffsetRenderer);
+                                if (AppSettings.Instance.BackgroundEffect == BackgroundEffectType.Wave && waveVariation != null)
                                 {
-                                    var hash = monitorId != null ? monitorId.GetHashCode() : (int)i;
-                                    var phaseOffset = (hash % 1000) / 1000.0 * Math.PI * 2.0;
-                                    _waveRenderer.SetVariationOffset(phaseOffset);
+                                    waveVariation.SetVariationOffset(_waveVariationOffset);
                                 }
+
                                 var waveWidth = WaveCanvas.ActualWidth > 0
                                     ? WaveCanvas.ActualWidth
                                     : (rootElement.ActualWidth > 0 ? rootElement.ActualWidth : logicalWidth);
-                                App.Log($"Wave regen width: {waveWidth}, canvas actual: {WaveCanvas.ActualWidth}x{WaveCanvas.ActualHeight}, root actual: {rootElement.ActualWidth}x{rootElement.ActualHeight}, logical: {logicalWidth}x{logicalHeight}");
-                                _waveRenderer.SetCanvasSize(waveWidth, WaveCanvas.Height);
-                                _waveRenderer.Update(0);
-                                _waveRenderer.SetVariationOffset(0);
+
+                                var waveHeight = WaveCanvas.ActualHeight > 0
+                                    ? WaveCanvas.ActualHeight
+                                    : (WaveCanvas.Height > 0 ? WaveCanvas.Height : (rootElement.ActualHeight > 0 ? rootElement.ActualHeight : logicalHeight));
+
+                                _backgroundEffectRenderer.SetCanvasSize(waveWidth, waveHeight);
+                                _backgroundEffectRenderer.Update(0);
                             }
 
                             rootElement.UpdateLayout();
@@ -1082,6 +1137,32 @@ public partial class MainWindow : Window
                 rootElement.UpdateLayout();
 
                 App.Log($"布局更新完成: {width}x{height}");
+
+                // Ensure the selected background effect is regenerated for current size
+                try
+                {
+                    if (_backgroundEffectRenderer != null)
+                    {
+                        var waveVariation = (_backgroundEffectRenderer as IVariationOffsetRenderer);
+                        if (AppSettings.Instance.BackgroundEffect == BackgroundEffectType.Wave && waveVariation != null)
+                        {
+                            waveVariation.SetVariationOffset(_waveVariationOffset);
+                        }
+
+                        var waveWidth = WaveCanvas.ActualWidth > 0
+                            ? WaveCanvas.ActualWidth
+                            : (rootElement.ActualWidth > 0 ? rootElement.ActualWidth : width);
+
+                        var waveHeight = WaveCanvas.ActualHeight > 0
+                            ? WaveCanvas.ActualHeight
+                            : (WaveCanvas.Height > 0 ? WaveCanvas.Height : (rootElement.ActualHeight > 0 ? rootElement.ActualHeight : height));
+                        _backgroundEffectRenderer.SetCanvasSize(waveWidth, waveHeight);
+                        _backgroundEffectRenderer.Update(0);
+                    }
+                }
+                catch
+                {
+                }
 
                 // 3. 使用实际 DPI 和物理像素尺寸进行渲染
                 var renderBitmap = new RenderTargetBitmap(

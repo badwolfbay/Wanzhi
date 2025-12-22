@@ -39,6 +39,15 @@
                         <!-- 背景设置 -->
                         <GroupBox Header="背景" Padding="10" Margin="0,0,0,15">
                             <StackPanel>
+                                <TextBlock Text="背景效果:" Margin="0,0,0,5"/>
+                                <ComboBox x:Name="BackgroundEffectComboBox"
+                                         Margin="0,0,0,10"
+                                         SelectionChanged="BackgroundEffectComboBox_SelectionChanged">
+                                    <ComboBoxItem Content="波浪" Tag="Wave" IsSelected="True"/>
+                                    <ComboBoxItem Content="圆泡" Tag="Bubbles"/>
+                                    <ComboBoxItem Content="软团" Tag="Blobs"/>
+                                </ComboBox>
+
                                 <TextBlock Text="背景颜色:" Margin="0,0,0,5"/>
                                 <Button x:Name="ColorPickerButton" 
                                        Content="选择背景颜色" 
@@ -46,7 +55,7 @@
                                        Padding="10,5"
                                        Margin="0,0,0,10"/>
 
-                                <TextBlock Text="波浪颜色:" Margin="0,0,0,5"/>
+                                <TextBlock Text="背景效果颜色:" Margin="0,0,0,5"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -55,7 +64,7 @@
 
                                     <Button x:Name="WaveColorPickerButton" 
                                            Grid.Column="0"
-                                           Content="选择波浪颜色" 
+                                           Content="选择背景效果颜色" 
                                            Click="WaveColorPickerButton_Click"
                                            Padding="10,5"
                                            Margin="0,0,10,0"/>
@@ -157,7 +166,7 @@
 
                                 <CheckBox Grid.Column="1"
                                           x:Name="RandomTraditionalWaveColorOnRefreshCheckBox"
-                                          Content="波浪线随机传统色"
+                                          Content="背景效果随机传统色"
                                           Margin="12,0,0,0"
                                           IsChecked="False"
                                           VerticalAlignment="Center"

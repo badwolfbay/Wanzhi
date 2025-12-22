@@ -8,7 +8,7 @@ namespace Wanzhi.Rendering
     /// <summary>
     /// 波浪动画渲染器
     /// </summary>
-    public class WaveRenderer
+    public class WaveRenderer : IBackgroundEffectRenderer, IVariationOffsetRenderer
     {
         private readonly Path[] _wavePaths;
         private double _animationOffset = 0;
@@ -44,6 +44,8 @@ namespace Wanzhi.Rendering
         }
 
         public Path[] GetWavePaths() => _wavePaths;
+
+        public System.Collections.Generic.IEnumerable<UIElement> GetVisuals() => _wavePaths;
 
         public void SetCanvasSize(double width, double height)
         {

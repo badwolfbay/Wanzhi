@@ -44,6 +44,13 @@ namespace Wanzhi.Settings
             set { _waveColor = value; OnPropertyChanged(); }
         }
 
+        private BackgroundEffectType _backgroundEffect = BackgroundEffectType.Wave;
+        public BackgroundEffectType BackgroundEffect
+        {
+            get => _backgroundEffect;
+            set { _backgroundEffect = value; OnPropertyChanged(); }
+        }
+
         // 诗词文字大小
         private int _poetryFontSize = 36;
         public int PoetryFontSize
@@ -254,5 +261,12 @@ namespace Wanzhi.Settings
         Left,
         Center,
         Right
+    }
+
+    public enum BackgroundEffectType
+    {
+        Wave,
+        Bubbles,
+        Blobs
     }
 }
