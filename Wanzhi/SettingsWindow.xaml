@@ -144,13 +144,8 @@
 
                             <!-- 刷新频率 -->
                             <TextBlock Text="刷新间隔（分钟）:" Margin="0,0,0,5"/>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-
-                                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
                                     <Slider x:Name="RefreshIntervalSlider"
                                            Minimum="10"
                                            Maximum="240"
@@ -161,18 +156,18 @@
                                     <TextBlock x:Name="RefreshIntervalText" 
                                               Text="60" 
                                               Margin="10,0,0,0"
-                                              VerticalAlignment="Center"/>
+                                              VerticalAlignment="Center"
+                                              MinWidth="30"/>
                                 </StackPanel>
-
-                                <CheckBox Grid.Column="1"
-                                          x:Name="RandomTraditionalWaveColorOnRefreshCheckBox"
-                                          Content="背景效果随机传统色"
-                                          Margin="12,0,0,0"
+                                
+                                <CheckBox x:Name="RandomTraditionalWaveColorOnRefreshCheckBox"
+                                          Content="刷新时背景效果随机传统色"
+                                          Margin="0,10,0,0"
                                           IsChecked="False"
                                           VerticalAlignment="Center"
                                           Checked="RandomTraditionalWaveColorOnRefreshCheckBox_Changed"
                                           Unchecked="RandomTraditionalWaveColorOnRefreshCheckBox_Changed"/>
-                            </Grid>
+                            </StackPanel>
                         </StackPanel>
                     </GroupBox>
                 </TabItem>
