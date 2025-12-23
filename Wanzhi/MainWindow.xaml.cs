@@ -75,7 +75,8 @@ public partial class MainWindow : Window
         _poetryRefreshTimer.Tick += async (s, e) =>
         {
             System.Threading.Interlocked.Increment(ref _diagPoetryRefreshTicks);
-            await LoadPoetryAsync(updateBackground: false);
+            var settings = AppSettings.Instance;
+            await LoadPoetryAsync(updateBackground: settings.RandomTraditionalWaveColorOnRefresh);
         };
 
         _diagTimer = new DispatcherTimer
@@ -304,6 +305,7 @@ public partial class MainWindow : Window
                     if (pool.Count > 0)
                     {
                         var picked = pool[Random.Shared.Next(0, pool.Count)];
+                        App.Log($"刷新时随机传统色: {picked.Name} {picked.Hex}");
                         settings.WaveColor = picked.Hex!;
                         settings.Save();
                         randomizedWaveColor = true;
@@ -1020,7 +1022,8 @@ public partial class MainWindow : Window
 
     public void RefreshPoetry()
     {
-        _ = LoadPoetryAsync(updateBackground: false);
+        var settings = AppSettings.Instance;
+        _ = LoadPoetryAsync(updateBackground: settings.RandomTraditionalWaveColorOnRefresh);
     }
 
     public async System.Threading.Tasks.Task ApplyAsWallpaperAsync(bool silent = false)
