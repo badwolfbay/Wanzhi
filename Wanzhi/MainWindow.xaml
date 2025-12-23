@@ -27,9 +27,11 @@
         <Canvas x:Name="WaveCanvas" ClipToBounds="True" VerticalAlignment="Stretch"/>
         
         <!-- 诗词显示层 -->
-        <Grid x:Name="PoetryGrid" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="100">
-            <!-- 动态内容容器：从右向左排列列，实现竖排效果 -->
-            <StackPanel x:Name="PoetryContainer" Orientation="Horizontal" FlowDirection="RightToLeft" HorizontalAlignment="Center"/>
+        <Grid x:Name="PoetryGrid" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Margin="100">
+            <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <!-- 动态内容容器：从右向左排列列，实现竖排效果 -->
+                <StackPanel x:Name="PoetryContainer" Orientation="Horizontal" FlowDirection="RightToLeft" HorizontalAlignment="Center"/>
+            </Viewbox>
         </Grid>
     </Grid>
 </Window>
