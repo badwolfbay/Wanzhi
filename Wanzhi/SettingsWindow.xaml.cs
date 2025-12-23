@@ -293,6 +293,11 @@ namespace Wanzhi
                 RandomTraditionalWaveColorOnRefreshCheckBox.IsChecked = _settings.RandomTraditionalWaveColorOnRefresh;
             }
 
+            if (ShowTraditionalColorNameOnRightCheckBox != null)
+            {
+                ShowTraditionalColorNameOnRightCheckBox.IsChecked = _settings.ShowTraditionalColorNameOnRight;
+            }
+
             // 加载字符间距设置
             PoetryCharacterSpacingSlider.Value = _settings.PoetryCharacterSpacing;
             PoetryVerticalCharacterSpacingSlider.Value = _settings.PoetryVerticalCharacterSpacing;
@@ -314,6 +319,12 @@ namespace Wanzhi
         {
             if (_settings == null) return;
             _settings.RandomTraditionalWaveColorOnRefresh = RandomTraditionalWaveColorOnRefreshCheckBox.IsChecked == true;
+        }
+
+        private void ShowTraditionalColorNameOnRightCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_settings == null) return;
+            _settings.ShowTraditionalColorNameOnRight = ShowTraditionalColorNameOnRightCheckBox.IsChecked == true;
         }
 
         private void UpdateColorButtonBackground()

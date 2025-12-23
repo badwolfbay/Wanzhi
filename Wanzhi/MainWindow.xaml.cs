@@ -7,8 +7,8 @@ using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-
 using System.Windows.Threading;
+
 using Wanzhi.Models;
 using Wanzhi.Rendering;
 using Wanzhi.Services;
@@ -459,6 +459,8 @@ public partial class MainWindow : Window
             {
                 RenderVerticalPoetry(poetry, textColor, secondaryTextColor);
             }
+
+            UpdateTraditionalColorNameOverlay();
         });
     }
 
@@ -753,6 +755,96 @@ public partial class MainWindow : Window
         PoetryContainer.Children.Add(footerStack);
     }
 
+    private static TraditionalColor? TryGetCurrentTraditionalWaveColor()
+    {
+        try
+        {
+            var wave = AppSettings.Instance.WaveColor;
+            if (string.IsNullOrWhiteSpace(wave)) return null;
+
+            var waveColor = TraditionalColorPalette.TryParseToMediaColor(wave);
+            if (waveColor == null) return null;
+
+            var all = TraditionalColorPalette.GetAll();
+            foreach (var c in all)
+            {
+                if (string.IsNullOrWhiteSpace(c.Hex)) continue;
+                var candidateColor = TraditionalColorPalette.TryParseToMediaColor(c.Hex!);
+                if (candidateColor == null) continue;
+
+                if (candidateColor.Value.R == waveColor.Value.R &&
+                    candidateColor.Value.G == waveColor.Value.G &&
+                    candidateColor.Value.B == waveColor.Value.B)
+                {
+                    return c;
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return null;
+    }
+
+    private static string ToVerticalText(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return string.Empty;
+        return string.Join("\n", text.ToCharArray());
+    }
+
+    private void UpdateTraditionalColorNameOverlay()
+    {
+        if (RightTraditionalColorNameText == null) return;
+
+        var settings = AppSettings.Instance;
+        if (!settings.ShowTraditionalColorNameOnRight)
+        {
+            RightTraditionalColorNameText.Visibility = Visibility.Collapsed;
+            RightTraditionalColorNameText.Text = string.Empty;
+            return;
+        }
+
+        var match = TryGetCurrentTraditionalWaveColor();
+        if (match?.Name == null || string.IsNullOrWhiteSpace(match.Name))
+        {
+            RightTraditionalColorNameText.Visibility = Visibility.Collapsed;
+            RightTraditionalColorNameText.Text = string.Empty;
+            return;
+        }
+
+        RightTraditionalColorNameText.Text = ToVerticalText(match.Name);
+        RightTraditionalColorNameText.FontFamily = new FontFamily(settings.AuthorFontFamily);
+
+        var canvasWidth = RootGrid != null && RootGrid.ActualWidth > 0 ? RootGrid.ActualWidth : (ActualWidth > 0 ? ActualWidth : Width);
+        var canvasHeight = RootGrid != null && RootGrid.ActualHeight > 0 ? RootGrid.ActualHeight : (ActualHeight > 0 ? ActualHeight : Height);
+
+        var charCount = Math.Max(1, match.Name.Length);
+        var safeVerticalMargin = canvasHeight > 0 ? Math.Max(26, canvasHeight * 0.10) : 85;
+        var safeRightMarginBase = canvasWidth > 0 ? Math.Max(18, canvasWidth * 0.03) : 60;
+        var availableHeight = Math.Max(1, (canvasHeight > 0 ? canvasHeight : 900) - safeVerticalMargin * 2);
+
+        // Extra safety to avoid glyph overhang clipping at top/bottom on some fonts/DPI
+        var lineHeightFactor = 1.28;
+        var computedFontSize = (availableHeight / (charCount * lineHeightFactor)) * 0.88;
+        computedFontSize = Math.Max(70, Math.Min(240, computedFontSize));
+
+        RightTraditionalColorNameText.FontSize = computedFontSize;
+        RightTraditionalColorNameText.LineStackingStrategy = LineStackingStrategy.BlockLineHeight;
+        RightTraditionalColorNameText.LineHeight = computedFontSize * lineHeightFactor;
+        RightTraditionalColorNameText.MaxHeight = Math.Max(1, availableHeight - computedFontSize * 0.50);
+
+        // Nudge down slightly to avoid glyph ascender clipping on some fonts (e.g. "飞")
+        RightTraditionalColorNameText.RenderTransform = new TranslateTransform(0, computedFontSize * 0.08);
+
+        var rightMargin = (int)Math.Round(safeRightMarginBase + computedFontSize * 0.25);
+        RightTraditionalColorNameText.Margin = new Thickness(0, safeVerticalMargin, rightMargin, safeVerticalMargin);
+
+        var baseColor = _isDarkTheme ? Colors.White : Colors.Black;
+        RightTraditionalColorNameText.Foreground = new SolidColorBrush(Color.FromArgb(26, baseColor.R, baseColor.G, baseColor.B));
+        RightTraditionalColorNameText.Visibility = Visibility.Visible;
+    }
+
     private void ApplyTheme()
     {
         System.Threading.Interlocked.Increment(ref _diagApplyThemeCalls);
@@ -864,9 +956,9 @@ public partial class MainWindow : Window
                 }
                 break;
 
-            case nameof(AppSettings.Theme):
-            case nameof(AppSettings.BackgroundColor):
+            case nameof(AppSettings.WaveColor):
                 ApplyTheme();
+                UpdateTraditionalColorNameOverlay();
                 if (_currentPoetry != null)
                 {
                     UpdatePoetryDisplay(_currentPoetry, updateBackground: true);
@@ -874,7 +966,16 @@ public partial class MainWindow : Window
                 }
                 break;
 
-            case nameof(AppSettings.WaveColor):
+            case nameof(AppSettings.ShowTraditionalColorNameOnRight):
+                UpdateTraditionalColorNameOverlay();
+                if (_currentPoetry != null)
+                {
+                    await ApplyAsWallpaperAsync(silent: true);
+                }
+                break;
+
+            case nameof(AppSettings.Theme):
+            case nameof(AppSettings.BackgroundColor):
                 ApplyTheme();
                 if (_currentPoetry != null)
                 {
@@ -898,6 +999,7 @@ public partial class MainWindow : Window
                 if (_currentPoetry != null)
                 {
                     UpdatePoetryDisplay(_currentPoetry, updateBackground: false);
+                    UpdateTraditionalColorNameOverlay();
                     await ApplyAsWallpaperAsync(silent: true);
                 }
                 break;
@@ -931,7 +1033,7 @@ public partial class MainWindow : Window
         {
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(finalPath) ?? string.Empty);
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(finalPath) ?? string.Empty);
                 File.Move(tempPath, finalPath, overwrite: true);
             }
             catch
@@ -991,13 +1093,13 @@ public partial class MainWindow : Window
                     throw new Exception("无法获取窗口内容进行渲染");
                 }
 
-                var appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Wanzhi");
-                Directory.CreateDirectory(appDataPath);
+                var appDataPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Wanzhi");
+                System.IO.Directory.CreateDirectory(appDataPath);
                 App.Log($"Multi-monitor wallpaper output dir: {appDataPath}");
 
                 var batchId = applyBatchId;
 
-                var monitorWallpapers = new System.Collections.Generic.List<(string MonitorId, string Path)>();
+                var monitorWallpapers = new System.Collections.Generic.List<(string MonitorId, string FilePath)>();
                 var encodeTasks = new System.Collections.Generic.List<System.Threading.Tasks.Task>();
 
                 var originalWidth = rootElement.Width;
@@ -1066,6 +1168,9 @@ public partial class MainWindow : Window
 
                             rootElement.UpdateLayout();
 
+                            // Recompute overlay for each monitor size/DPI to avoid clipping
+                            UpdateTraditionalColorNameOverlay();
+
                             var renderBitmap = new RenderTargetBitmap(
                                 pixelWidth,
                                 pixelHeight,
@@ -1078,13 +1183,13 @@ public partial class MainWindow : Window
                             // Freeze before handing over to background thread for encoding/writing.
                             renderBitmap.Freeze();
 
-                            var tempWallpaperPath = Path.Combine(appDataPath, $"wallpaper_{i}_{batchId}.tmp.png");
-                            var finalWallpaperPath = Path.Combine(appDataPath, $"wallpaper_{i}.png");
+                            var tempWallpaperPath = System.IO.Path.Combine(appDataPath, $"wallpaper_{i}_{batchId}.tmp.png");
+                            var finalWallpaperPath = System.IO.Path.Combine(appDataPath, $"wallpaper_{i}.png");
 
                             var frozenBitmap = renderBitmap;
                             encodeTasks.Add(System.Threading.Tasks.Task.Run(() =>
                             {
-                                using (var fileStream = new FileStream(tempWallpaperPath, FileMode.Create))
+                                using (var fileStream = new System.IO.FileStream(tempWallpaperPath, System.IO.FileMode.Create))
                                 {
                                     var encoder = new PngBitmapEncoder();
                                     encoder.Frames.Add(BitmapFrame.Create(frozenBitmap));
@@ -1227,16 +1332,16 @@ public partial class MainWindow : Window
             renderBitmap.Freeze();
 
             // 3. 保存为文件
-            var appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Wanzhi");
-            Directory.CreateDirectory(appDataPath);
+            var appDataPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Wanzhi");
+            System.IO.Directory.CreateDirectory(appDataPath);
             var batchId = applyBatchId;
-            var tempWallpaperPath = Path.Combine(appDataPath, $"wallpaper_{batchId}.tmp.png");
-            var wallpaperPath = Path.Combine(appDataPath, "wallpaper.png");
+            var tempWallpaperPath = System.IO.Path.Combine(appDataPath, $"wallpaper_{batchId}.tmp.png");
+            var wallpaperPath = System.IO.Path.Combine(appDataPath, "wallpaper.png");
 
             var frozenBitmap = renderBitmap;
             await System.Threading.Tasks.Task.Run(() =>
             {
-                using (var fileStream = new FileStream(tempWallpaperPath, FileMode.Create))
+                using (var fileStream = new System.IO.FileStream(tempWallpaperPath, System.IO.FileMode.Create))
                 {
                     var encoder = new PngBitmapEncoder();
                     encoder.Frames.Add(BitmapFrame.Create(frozenBitmap));

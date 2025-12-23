@@ -153,6 +153,13 @@ namespace Wanzhi.Settings
             set { _randomTraditionalWaveColorOnRefresh = value; OnPropertyChanged(); }
         }
 
+        private bool _showTraditionalColorNameOnRight = false;
+        public bool ShowTraditionalColorNameOnRight
+        {
+            get => _showTraditionalColorNameOnRight;
+            set { _showTraditionalColorNameOnRight = value; OnPropertyChanged(); }
+        }
+
         // 开机自启
         private bool _autoStart = false;
         public bool AutoStart

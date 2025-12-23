@@ -82,8 +82,9 @@
 
                 <!-- 诗词排版 -->
                 <TabItem Header="诗词排版">
-                    <GroupBox Header="排版" Padding="10" Margin="0,10,0,10">
-                        <StackPanel>
+                    <StackPanel Margin="0,10,0,0">
+                        <GroupBox Header="排版" Padding="10" Margin="0,0,0,10">
+                            <StackPanel>
                             <TextBlock Text="文字方向:" Margin="0,0,0,5"/>
                             <ComboBox x:Name="OrientationComboBox" 
                                      Margin="0,0,0,10"
@@ -168,8 +169,20 @@
                                           Checked="RandomTraditionalWaveColorOnRefreshCheckBox_Changed"
                                           Unchecked="RandomTraditionalWaveColorOnRefreshCheckBox_Changed"/>
                             </StackPanel>
-                        </StackPanel>
-                    </GroupBox>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="显示" Padding="10" Margin="0,0,0,10">
+                            <StackPanel>
+                                <CheckBox x:Name="ShowTraditionalColorNameOnRightCheckBox"
+                                          Content="右侧显示传统色名称"
+                                          IsChecked="False"
+                                          VerticalAlignment="Center"
+                                          Checked="ShowTraditionalColorNameOnRightCheckBox_Changed"
+                                          Unchecked="ShowTraditionalColorNameOnRightCheckBox_Changed"/>
+                            </StackPanel>
+                        </GroupBox>
+                    </StackPanel>
                 </TabItem>
 
                 <!-- 诗词样式 -->

@@ -33,5 +33,15 @@
                 <StackPanel x:Name="PoetryContainer" Orientation="Horizontal" FlowDirection="RightToLeft" HorizontalAlignment="Center"/>
             </Viewbox>
         </Grid>
+
+        <TextBlock x:Name="RightTraditionalColorNameText"
+                   Visibility="Collapsed"
+                   HorizontalAlignment="Right"
+                   VerticalAlignment="Center"
+                   Margin="0,60,60,60"
+                   TextAlignment="Center"
+                   FontSize="220"
+                   FontWeight="Bold"
+                   IsHitTestVisible="False"/>
     </Grid>
 </Window>
