@@ -1168,8 +1168,7 @@ public partial class MainWindow : Window
 
                             rootElement.UpdateLayout();
 
-                            // Recompute overlay for each monitor size/DPI to avoid clipping
-                            UpdateTraditionalColorNameOverlay();
+                            // Do not recompute overlay during apply; capture current UI state
 
                             var renderBitmap = new RenderTargetBitmap(
                                 pixelWidth,
