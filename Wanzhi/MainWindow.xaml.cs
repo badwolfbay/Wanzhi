@@ -32,6 +32,19 @@ public partial class MainWindow : Window
 
     private double _waveVariationOffset;
 
+    private static double ComputeMonitorVariationOffset(string? monitorId, DesktopWallpaperManager.RECT rect)
+    {
+        unchecked
+        {
+            var idHash = monitorId != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(monitorId) : 0;
+            var seed = HashCode.Combine(idHash, rect.Left, rect.Top, rect.Right, rect.Bottom);
+            // Map deterministic int seed to [0, 2π)
+            var u = (uint)seed;
+            var t = u / (double)uint.MaxValue;
+            return t * Math.PI * 2.0;
+        }
+    }
+
     private long _diagPoetryRefreshTicks;
     private long _diagSettingsChanged;
     private long _diagLoadPoetryCalls;
@@ -983,6 +996,9 @@ public partial class MainWindow : Window
                 var originalWidth = rootElement.Width;
                 var originalHeight = rootElement.Height;
 
+                var variationRenderer = _backgroundEffectRenderer as IVariationOffsetRenderer;
+                var originalVariationOffset = _waveVariationOffset;
+
                 try
                 {
                     for (uint i = 0; i < desktopWallpaper.MonitorCount; i++)
@@ -1021,10 +1037,12 @@ public partial class MainWindow : Window
 
                             if (_backgroundEffectRenderer != null)
                             {
-                                var waveVariation = (_backgroundEffectRenderer as IVariationOffsetRenderer);
-                                if (AppSettings.Instance.BackgroundEffect == BackgroundEffectType.Wave && waveVariation != null)
+                                if (variationRenderer != null)
                                 {
-                                    waveVariation.SetVariationOffset(_waveVariationOffset);
+                                    var monitorOffset = ComputeMonitorVariationOffset(monitorId, rect);
+                                    // Add a base offset so each apply/theme change can still influence the overall feel,
+                                    // but each monitor stays distinct.
+                                    variationRenderer.SetVariationOffset(originalVariationOffset + monitorOffset);
                                 }
 
                                 var waveWidth = WaveCanvas.ActualWidth > 0
@@ -1078,6 +1096,10 @@ public partial class MainWindow : Window
                 }
                 finally
                 {
+                    if (variationRenderer != null)
+                    {
+                        variationRenderer.SetVariationOffset(originalVariationOffset);
+                    }
                     rootElement.Width = originalWidth;
                     rootElement.Height = originalHeight;
                     rootElement.UpdateLayout();
