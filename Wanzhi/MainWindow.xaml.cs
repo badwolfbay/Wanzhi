@@ -996,6 +996,7 @@ public partial class MainWindow : Window
                 var batchId = applyBatchId;
 
                 var monitorWallpapers = new System.Collections.Generic.List<(string MonitorId, string Path)>();
+                var encodeTasks = new System.Collections.Generic.List<System.Threading.Tasks.Task>();
 
                 var originalWidth = rootElement.Width;
                 var originalHeight = rootElement.Height;
@@ -1072,22 +1073,36 @@ public partial class MainWindow : Window
 
                             renderBitmap.Render(rootElement);
 
+                            // Freeze before handing over to background thread for encoding/writing.
+                            renderBitmap.Freeze();
+
                             var tempWallpaperPath = Path.Combine(appDataPath, $"wallpaper_{i}_{batchId}.tmp.png");
                             var finalWallpaperPath = Path.Combine(appDataPath, $"wallpaper_{i}.png");
-                            using (var fileStream = new FileStream(tempWallpaperPath, FileMode.Create))
-                            {
-                                var encoder = new PngBitmapEncoder();
-                                encoder.Frames.Add(BitmapFrame.Create(renderBitmap));
-                                encoder.Save(fileStream);
-                            }
 
-                            ReplaceFile(tempWallpaperPath, finalWallpaperPath);
+                            var frozenBitmap = renderBitmap;
+                            encodeTasks.Add(System.Threading.Tasks.Task.Run(() =>
+                            {
+                                using (var fileStream = new FileStream(tempWallpaperPath, FileMode.Create))
+                                {
+                                    var encoder = new PngBitmapEncoder();
+                                    encoder.Frames.Add(BitmapFrame.Create(frozenBitmap));
+                                    encoder.Save(fileStream);
+                                }
+
+                                ReplaceFile(tempWallpaperPath, finalWallpaperPath);
+                            }));
 
                             monitorWallpapers.Add((monitorId ?? string.Empty, finalWallpaperPath));
                         }
                         catch
                         {
                         }
+                    }
+
+                    // Wait for all PNG encoding/writing to finish before applying wallpapers.
+                    if (encodeTasks.Count > 0)
+                    {
+                        await System.Threading.Tasks.Task.WhenAll(encodeTasks);
                     }
 
                     // Apply wallpapers after all files are fully written to reduce flicker/intermediate state
@@ -1104,6 +1119,7 @@ public partial class MainWindow : Window
                     {
                         variationRenderer.SetVariationOffset(originalVariationOffset);
                     }
+
                     rootElement.Width = originalWidth;
                     rootElement.Height = originalHeight;
                     rootElement.UpdateLayout();
@@ -1151,78 +1167,91 @@ public partial class MainWindow : Window
             App.Log($"生成壁纸像素尺寸: {pixelWidth}x{pixelHeight}");
 
             // 获取根元素（Grid）
-            if (Content is FrameworkElement rootElement)
+            if (Content is not FrameworkElement rootElement)
             {
-                // 设置逻辑尺寸进行布局
-                rootElement.Width = width;
-                rootElement.Height = height;
+                throw new Exception("无法获取窗口内容进行渲染");
+            }
 
-                // 强制重新测量和排列
-                rootElement.Measure(new Size(width, height));
-                rootElement.Arrange(new Rect(0, 0, width, height));
-                rootElement.UpdateLayout();
+            // 设置逻辑尺寸进行布局
+            rootElement.Width = width;
+            rootElement.Height = height;
 
-                App.Log($"布局更新完成: {width}x{height}");
+            // 强制重新测量和排列
+            rootElement.Measure(new Size(width, height));
+            rootElement.Arrange(new Rect(0, 0, width, height));
+            rootElement.UpdateLayout();
 
-                // Ensure the selected background effect is regenerated for current size
-                try
+            App.Log($"布局更新完成: {width}x{height}");
+
+            // Ensure the selected background effect is regenerated for current size
+            try
+            {
+                if (_backgroundEffectRenderer != null)
                 {
-                    if (_backgroundEffectRenderer != null)
+                    var waveVariation = (_backgroundEffectRenderer as IVariationOffsetRenderer);
+                    if (AppSettings.Instance.BackgroundEffect == BackgroundEffectType.Wave && waveVariation != null)
                     {
-                        var waveVariation = (_backgroundEffectRenderer as IVariationOffsetRenderer);
-                        if (AppSettings.Instance.BackgroundEffect == BackgroundEffectType.Wave && waveVariation != null)
-                        {
-                            waveVariation.SetVariationOffset(_waveVariationOffset);
-                        }
-
-                        var waveWidth = WaveCanvas.ActualWidth > 0
-                            ? WaveCanvas.ActualWidth
-                            : (rootElement.ActualWidth > 0 ? rootElement.ActualWidth : width);
-
-                        var waveHeight = WaveCanvas.ActualHeight > 0
-                            ? WaveCanvas.ActualHeight
-                            : (WaveCanvas.Height > 0 ? WaveCanvas.Height : (rootElement.ActualHeight > 0 ? rootElement.ActualHeight : height));
-                        _backgroundEffectRenderer.SetCanvasSize(waveWidth, waveHeight);
-                        _backgroundEffectRenderer.Update(0);
+                        waveVariation.SetVariationOffset(_waveVariationOffset);
                     }
+
+                    var waveWidth = WaveCanvas.ActualWidth > 0
+                        ? WaveCanvas.ActualWidth
+                        : (rootElement.ActualWidth > 0 ? rootElement.ActualWidth : width);
+
+                    var waveHeight = WaveCanvas.ActualHeight > 0
+                        ? WaveCanvas.ActualHeight
+                        : (WaveCanvas.Height > 0 ? WaveCanvas.Height : (rootElement.ActualHeight > 0 ? rootElement.ActualHeight : height));
+                    _backgroundEffectRenderer.SetCanvasSize(waveWidth, waveHeight);
+                    _backgroundEffectRenderer.Update(0);
                 }
-                catch
-                {
-                }
+            }
+            catch
+            {
+            }
 
-                // 3. 使用实际 DPI 和物理像素尺寸进行渲染
-                var renderBitmap = new RenderTargetBitmap(
-                    pixelWidth,
-                    pixelHeight,
-                    96.0 * dpiScaleX,
-                    96.0 * dpiScaleY,
-                    PixelFormats.Pbgra32);
+            // 3. 使用实际 DPI 和物理像素尺寸进行渲染
+            var renderBitmap = new RenderTargetBitmap(
+                pixelWidth,
+                pixelHeight,
+                96.0 * dpiScaleX,
+                96.0 * dpiScaleY,
+                PixelFormats.Pbgra32);
 
-                renderBitmap.Render(rootElement);
+            renderBitmap.Render(rootElement);
 
-                // 3. 保存为文件
-                var appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Wanzhi");
-                Directory.CreateDirectory(appDataPath);
-                var batchId = applyBatchId;
-                var tempWallpaperPath = Path.Combine(appDataPath, $"wallpaper_{batchId}.tmp.png");
-                var wallpaperPath = Path.Combine(appDataPath, "wallpaper.png");
+            // Freeze before encoding on background thread.
+            renderBitmap.Freeze();
 
+            // 3. 保存为文件
+            var appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Wanzhi");
+            Directory.CreateDirectory(appDataPath);
+            var batchId = applyBatchId;
+            var tempWallpaperPath = Path.Combine(appDataPath, $"wallpaper_{batchId}.tmp.png");
+            var wallpaperPath = Path.Combine(appDataPath, "wallpaper.png");
+
+            var frozenBitmap = renderBitmap;
+            await System.Threading.Tasks.Task.Run(() =>
+            {
                 using (var fileStream = new FileStream(tempWallpaperPath, FileMode.Create))
                 {
                     var encoder = new PngBitmapEncoder();
-                    encoder.Frames.Add(BitmapFrame.Create(renderBitmap));
+                    encoder.Frames.Add(BitmapFrame.Create(frozenBitmap));
                     encoder.Save(fileStream);
                 }
 
                 ReplaceFile(tempWallpaperPath, wallpaperPath);
+            });
 
-                App.Log($"壁纸图片已保存: {wallpaperPath}");
+            App.Log($"壁纸图片已保存: {wallpaperPath}");
 
-                // 4. 设置为系统壁纸
-                var winIni = SPIF_UPDATEINIFILE | (silent ? 0 : SPIF_SENDCHANGE);
-                int result = SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, wallpaperPath, winIni);
+            // 4. 设置为系统壁纸
+            var winIni = SPIF_UPDATEINIFILE | (silent ? 0 : SPIF_SENDCHANGE);
+            int result = SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, wallpaperPath, winIni);
 
-                if (result != 0)
+            if (result != 0)
+            {
+                App.Log("系统壁纸设置成功");
+                if (!silent)
                 {
                     App.Log("系统壁纸设置成功");
                     if (!silent)
