@@ -75,7 +75,7 @@ public partial class MainWindow : Window
         _poetryRefreshTimer.Tick += async (s, e) =>
         {
             System.Threading.Interlocked.Increment(ref _diagPoetryRefreshTicks);
-            await LoadPoetryAsync();
+            await LoadPoetryAsync(updateBackground: false);
         };
 
         _diagTimer = new DispatcherTimer
@@ -116,7 +116,7 @@ public partial class MainWindow : Window
         WaveCanvas.Visibility = Visibility.Collapsed;
 
         // 加载诗词（后台异步，不阻塞启动）
-        _ = LoadPoetryAsync();
+        _ = LoadPoetryAsync(updateBackground: true);
 
         // 设置诗词刷新间隔
         UpdateRefreshInterval();
@@ -220,10 +220,10 @@ public partial class MainWindow : Window
 
         _startupPoetryRetryScheduled = true;
         await System.Threading.Tasks.Task.Delay(6000);
-        await LoadPoetryAsync();
+        await LoadPoetryAsync(updateBackground: false);
     }
 
-    private async System.Threading.Tasks.Task LoadPoetryAsync()
+    private async System.Threading.Tasks.Task LoadPoetryAsync(bool updateBackground)
     {
         System.Threading.Interlocked.Increment(ref _diagLoadPoetryCalls);
         PoetryData? poetry = null;
@@ -274,16 +274,17 @@ public partial class MainWindow : Window
         {
             App.Log($"诗词加载成功: {poetry.Content.Substring(0, Math.Min(5, poetry.Content.Length))}...");
             _currentPoetry = poetry;
-            UpdatePoetryDisplay(poetry);
+            UpdatePoetryDisplay(poetry, updateBackground);
 
             var settings = AppSettings.Instance;
             var randomizedWaveColor = false;
-            if (settings.RandomTraditionalWaveColorOnRefresh)
+            if (updateBackground && settings.RandomTraditionalWaveColorOnRefresh)
             {
                 try
                 {
                     var isDarkTheme = _isDarkTheme;
                     var all = TraditionalColorPalette.GetAll();
+
                     var pool = all
                         .Where(c => c.Hex != null)
                         .Where(c => TraditionalColorPalette.TryParseToMediaColor(c.Hex!) != null)
@@ -360,7 +361,7 @@ public partial class MainWindow : Window
         return color;
     }
 
-    private void UpdatePoetryDisplay(PoetryData poetry)
+    private void UpdatePoetryDisplay(PoetryData poetry, bool updateBackground)
     {
         System.Threading.Interlocked.Increment(ref _diagUpdatePoetryUiCalls);
         Dispatcher.Invoke(() =>
@@ -420,21 +421,24 @@ public partial class MainWindow : Window
             _isDarkTheme = luminance < 128; // 亮度低则是深色主题
 
             // 应用背景效果颜色
-            try
+            if (updateBackground)
             {
-                var waveBaseColor = (Color)ColorConverter.ConvertFromString(settings.WaveColor);
-                if (_backgroundEffectRenderer != null)
+                try
                 {
-                    _backgroundEffectRenderer.UpdateColor(waveBaseColor, _isDarkTheme);
+                    var waveBaseColor = (Color)ColorConverter.ConvertFromString(settings.WaveColor);
+                    if (_backgroundEffectRenderer != null)
+                    {
+                        _backgroundEffectRenderer.UpdateColor(waveBaseColor, _isDarkTheme);
+                    }
                 }
-            }
-            catch
-            {
-                // 默认深蓝色
-                var defaultWaveColor = Color.FromRgb(57, 73, 171);
-                if (_backgroundEffectRenderer != null)
+                catch
                 {
-                    _backgroundEffectRenderer.UpdateColor(defaultWaveColor, _isDarkTheme);
+                    // 默认深蓝色
+                    var defaultWaveColor = Color.FromRgb(57, 73, 171);
+                    if (_backgroundEffectRenderer != null)
+                    {
+                        _backgroundEffectRenderer.UpdateColor(defaultWaveColor, _isDarkTheme);
+                    }
                 }
             }
 
@@ -853,7 +857,7 @@ public partial class MainWindow : Window
 
                 if (_currentPoetry != null)
                 {
-                    UpdatePoetryDisplay(_currentPoetry);
+                    UpdatePoetryDisplay(_currentPoetry, updateBackground: true);
                     await ApplyAsWallpaperAsync(silent: true);
                 }
                 break;
@@ -863,7 +867,7 @@ public partial class MainWindow : Window
                 ApplyTheme();
                 if (_currentPoetry != null)
                 {
-                    UpdatePoetryDisplay(_currentPoetry);
+                    UpdatePoetryDisplay(_currentPoetry, updateBackground: true);
                     await ApplyAsWallpaperAsync(silent: true);
                 }
                 break;
@@ -872,7 +876,7 @@ public partial class MainWindow : Window
                 ApplyTheme();
                 if (_currentPoetry != null)
                 {
-                    UpdatePoetryDisplay(_currentPoetry);
+                    UpdatePoetryDisplay(_currentPoetry, updateBackground: true);
                     await ApplyAsWallpaperAsync(silent: true);
                 }
                 break;
@@ -891,7 +895,7 @@ public partial class MainWindow : Window
                 // 重新加载诗词以应用新样式
                 if (_currentPoetry != null)
                 {
-                    UpdatePoetryDisplay(_currentPoetry);
+                    UpdatePoetryDisplay(_currentPoetry, updateBackground: false);
                     await ApplyAsWallpaperAsync(silent: true);
                 }
                 break;
@@ -903,7 +907,7 @@ public partial class MainWindow : Window
                 // 重新加载诗词以应用新样式
                 if (_currentPoetry != null)
                 {
-                    UpdatePoetryDisplay(_currentPoetry);
+                    UpdatePoetryDisplay(_currentPoetry, updateBackground: false);
                     await ApplyAsWallpaperAsync(silent: true);
                 }
                 break;
@@ -912,7 +916,7 @@ public partial class MainWindow : Window
 
     public void RefreshPoetry()
     {
-        _ = LoadPoetryAsync();
+        _ = LoadPoetryAsync(updateBackground: false);
     }
 
     public async System.Threading.Tasks.Task ApplyAsWallpaperAsync(bool silent = false)
