@@ -102,7 +102,7 @@ public partial class MainWindow : Window
         _ = InitializeApp();
     }
 
-    private async System.Threading.Tasks.Task InitializeApp()
+    private System.Threading.Tasks.Task InitializeApp()
     {
         App.Log("Initializing App...");
 
@@ -122,6 +122,8 @@ public partial class MainWindow : Window
         UpdateRefreshInterval();
 
         App.Log("App Initialized.");
+
+        return System.Threading.Tasks.Task.CompletedTask;
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -339,7 +341,7 @@ public partial class MainWindow : Window
         await _applyWallpaperLock.WaitAsync(cts.Token);
         try
         {
-            var op = Dispatcher.InvokeAsync(() => ApplyAsWallpaperAsync(silent: true));
+            var op = Dispatcher.InvokeAsync(() => ApplyAsWallpaperAsync(silent: true), DispatcherPriority.Background);
             var inner = await op.Task;
             await inner;
         }
@@ -1093,6 +1095,8 @@ public partial class MainWindow : Window
                             }));
 
                             monitorWallpapers.Add((monitorId ?? string.Empty, finalWallpaperPath));
+
+                            await Dispatcher.Yield(DispatcherPriority.Background);
                         }
                         catch
                         {

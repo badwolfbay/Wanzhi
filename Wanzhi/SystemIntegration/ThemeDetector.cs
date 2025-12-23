@@ -11,8 +11,6 @@ namespace Wanzhi.SystemIntegration
         private const string RegistryKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize";
         private const string RegistryValueName = "AppsUseLightTheme";
 
-        public event EventHandler<bool>? ThemeChanged;
-
         /// <summary>
         /// 检测当前是否为深色主题
         /// </summary>

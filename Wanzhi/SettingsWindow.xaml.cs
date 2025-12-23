@@ -428,7 +428,11 @@ namespace Wanzhi
             if (_settings == null) return;
             if (FontComboBox.SelectedItem is ComboBoxItem item && item.Tag != null)
             {
-                _settings.PoetryFontFamily = item.Tag.ToString();
+                var font = item.Tag as string;
+                if (font != null)
+                {
+                    _settings.PoetryFontFamily = font;
+                }
             }
         }
 
@@ -437,7 +441,11 @@ namespace Wanzhi
             if (_settings == null) return;
             if (AuthorFontComboBox.SelectedItem is ComboBoxItem item && item.Tag != null)
             {
-                _settings.AuthorFontFamily = item.Tag.ToString();
+                var font = item.Tag as string;
+                if (font != null)
+                {
+                    _settings.AuthorFontFamily = font;
+                }
             }
         }
 
