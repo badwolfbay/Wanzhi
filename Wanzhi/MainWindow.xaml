@@ -25,6 +25,8 @@
         
         <!-- 波浪动画层 (底部) -->
         <Canvas x:Name="WaveCanvas" ClipToBounds="True" VerticalAlignment="Stretch"/>
+
+        <Rectangle x:Name="DarkModeOverlay" Fill="#FF000000" Opacity="0" Visibility="Collapsed"/>
         
         <!-- 诗词显示层 -->
         <Grid x:Name="PoetryGrid" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Margin="100">

@@ -32,6 +32,33 @@ public partial class MainWindow : Window
 
     private double _waveVariationOffset;
 
+    private bool IsDarkModeFromSettings(AppSettings settings)
+    {
+        return settings.Theme switch
+        {
+            ThemeMode.Dark => true,
+            ThemeMode.Light => false,
+            ThemeMode.System => _themeDetector.IsDarkTheme(),
+            _ => false
+        };
+    }
+
+    private void UpdateDarkModeOverlay(bool isDarkTheme)
+    {
+        if (DarkModeOverlay == null) return;
+
+        if (isDarkTheme)
+        {
+            DarkModeOverlay.Visibility = Visibility.Visible;
+            DarkModeOverlay.Opacity = 0.42;
+        }
+        else
+        {
+            DarkModeOverlay.Opacity = 0;
+            DarkModeOverlay.Visibility = Visibility.Collapsed;
+        }
+    }
+
     private static double ComputeMonitorVariationOffset(string? monitorId, DesktopWallpaperManager.RECT rect)
     {
         unchecked
@@ -421,32 +448,10 @@ public partial class MainWindow : Window
 
             // 确定当前主题 (基于背景亮度)
             // 计算相对亮度: 0.299*R + 0.587*G + 0.114*B
-            double luminance = (0.299 * bgColor.R + 0.587 * bgColor.G + 0.114 * bgColor.B);
-            _isDarkTheme = luminance < 128; // 亮度低则是深色主题
+            _isDarkTheme = IsDarkModeFromSettings(settings);
+            UpdateDarkModeOverlay(_isDarkTheme);
 
-            // 应用背景效果颜色
-            if (updateBackground)
-            {
-                try
-                {
-                    var waveBaseColor = (Color)ColorConverter.ConvertFromString(settings.WaveColor);
-                    if (_backgroundEffectRenderer != null)
-                    {
-                        _backgroundEffectRenderer.UpdateColor(waveBaseColor, _isDarkTheme);
-                    }
-                }
-                catch
-                {
-                    // 默认深蓝色
-                    var defaultWaveColor = Color.FromRgb(57, 73, 171);
-                    if (_backgroundEffectRenderer != null)
-                    {
-                        _backgroundEffectRenderer.UpdateColor(defaultWaveColor, _isDarkTheme);
-                    }
-                }
-            }
-
-            var textColorVal = GetLegibleTextColor(bgColor);
+            var textColorVal = _isDarkTheme ? Colors.White : GetLegibleTextColor(bgColor);
             var textColor = new SolidColorBrush(textColorVal);
             var secondaryTextColor = new SolidColorBrush(textColorVal == Colors.White ? Color.FromRgb(200, 200, 200) : Brushes.Gray.Color);
 
@@ -896,8 +901,8 @@ public partial class MainWindow : Window
 
         // 确定当前主题 (基于背景亮度)
         // 计算相对亮度: 0.299*R + 0.587*G + 0.114*B
-        double luminance = (0.299 * bgColor.R + 0.587 * bgColor.G + 0.114 * bgColor.B);
-        _isDarkTheme = luminance < 128; // 亮度低则是深色主题
+        _isDarkTheme = IsDarkModeFromSettings(settings);
+        UpdateDarkModeOverlay(_isDarkTheme);
 
         // 应用背景效果颜色
         try
