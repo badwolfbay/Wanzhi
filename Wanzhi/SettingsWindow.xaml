@@ -189,15 +189,19 @@
                 <TabItem Header="诗词样式">
                     <GroupBox Header="字体与大小" Padding="10" Margin="0,10,0,10">
                         <StackPanel>
-                            <TextBlock Text="正文字体:" Margin="0,0,0,5"/>
-                            <ComboBox x:Name="FontComboBox" 
-                                     Margin="0,0,0,10"
-                                     SelectionChanged="FontComboBox_SelectionChanged"/>
+                            						<TextBlock Text="正文字体:" Margin="0,0,0,5"/>
+						<ComboBox x:Name="FontComboBox" 
+						         Margin="0,0,0,10"
+						         DisplayMemberPath="DisplayName"
+						         SelectedValuePath="Source"
+						         SelectionChanged="FontComboBox_SelectionChanged"/>
 
-                            <TextBlock Text="标题与作者字体:" Margin="0,0,0,5"/>
-                            <ComboBox x:Name="AuthorFontComboBox" 
-                                     Margin="0,0,0,10"
-                                     SelectionChanged="AuthorFontComboBox_SelectionChanged"/>
+						<TextBlock Text="标题与作者字体:" Margin="0,0,0,5"/>
+						<ComboBox x:Name="AuthorFontComboBox" 
+						         Margin="0,0,0,10"
+						         DisplayMemberPath="DisplayName"
+						         SelectedValuePath="Source"
+						         SelectionChanged="AuthorFontComboBox_SelectionChanged"/>
 
                             <Separator Margin="0,5,0,10"/>
 

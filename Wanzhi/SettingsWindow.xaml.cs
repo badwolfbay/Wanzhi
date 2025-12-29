@@ -144,10 +144,18 @@ namespace Wanzhi
     /// </summary>
     public partial class SettingsWindow : Window
     {
-        private readonly AppSettings _settings;
+        private AppSettings _settings;
         private System.Windows.Media.Color _selectedColor;
         private System.Windows.Media.Color _selectedWaveColor;
-        
+
+        private sealed class FontItem
+        {
+            public string DisplayName { get; set; } = string.Empty;
+            public string Source { get; set; } = string.Empty;
+        }
+
+        private static IReadOnlyList<FontItem>? _cachedFontItems;
+
         /// <summary>
         /// 当为 true 时真正关闭窗口，否则只是隐藏
         /// </summary>
@@ -157,7 +165,6 @@ namespace Wanzhi
         {
             InitializeComponent();
             _settings = AppSettings.Instance;
-            LoadFonts();
             LoadFonts();
             RefreshState();
         }
@@ -175,39 +182,41 @@ namespace Wanzhi
         private void LoadFonts()
         {
             var language = System.Windows.Markup.XmlLanguage.GetLanguage("zh-cn");
-            var fontItems = new System.Collections.Generic.List<ComboBoxItem>();
-
-            foreach (var fontFamily in Fonts.SystemFontFamilies)
+            if (_cachedFontItems == null)
             {
-                string displayName;
-                // 尝试获取中文名称
-                if (fontFamily.FamilyNames.ContainsKey(language))
+                var fontItems = new System.Collections.Generic.List<FontItem>();
+
+                foreach (var fontFamily in Fonts.SystemFontFamilies)
                 {
-                    displayName = fontFamily.FamilyNames[language];
-                }
-                else
-                {
-                    displayName = fontFamily.Source;
+                    string displayName;
+                    if (fontFamily.FamilyNames.ContainsKey(language))
+                    {
+                        displayName = fontFamily.FamilyNames[language];
+                    }
+                    else
+                    {
+                        displayName = fontFamily.Source;
+                    }
+
+                    fontItems.Add(new FontItem
+                    {
+                        DisplayName = displayName,
+                        Source = fontFamily.Source
+                    });
                 }
 
-                fontItems.Add(new ComboBoxItem 
-                { 
-                    Content = displayName, 
-                    Tag = fontFamily.Source 
-                });
+                fontItems.Sort((a, b) => string.Compare(a.DisplayName, b.DisplayName, StringComparison.CurrentCulture));
+                _cachedFontItems = fontItems;
             }
 
-            // 按显示名称排序
-            fontItems.Sort((a, b) => string.Compare(a.Content.ToString(), b.Content.ToString(), StringComparison.CurrentCulture));
-
-            foreach (var item in fontItems)
+            if (!ReferenceEquals(FontComboBox.ItemsSource, _cachedFontItems))
             {
-                FontComboBox.Items.Add(item);
-                AuthorFontComboBox.Items.Add(new ComboBoxItem
-                {
-                    Content = item.Content,
-                    Tag = item.Tag
-                });
+                FontComboBox.ItemsSource = _cachedFontItems;
+            }
+
+            if (!ReferenceEquals(AuthorFontComboBox.ItemsSource, _cachedFontItems))
+            {
+                AuthorFontComboBox.ItemsSource = _cachedFontItems;
             }
         }
 
@@ -243,25 +252,8 @@ namespace Wanzhi
             UpdateWaveColorButtonBackground();
 
             // 加载诗词设置
-            // 选中对应的正文字体
-            foreach (ComboBoxItem item in FontComboBox.Items)
-            {
-                if (item.Tag?.ToString() == _settings.PoetryFontFamily)
-                {
-                    FontComboBox.SelectedItem = item;
-                    break;
-                }
-            }
-
-            // 选中对应的标题/作者字体
-            foreach (ComboBoxItem item in AuthorFontComboBox.Items)
-            {
-                if (item.Tag?.ToString() == _settings.AuthorFontFamily)
-                {
-                    AuthorFontComboBox.SelectedItem = item;
-                    break;
-                }
-            }
+            FontComboBox.SelectedValue = _settings.PoetryFontFamily;
+            AuthorFontComboBox.SelectedValue = _settings.AuthorFontFamily;
 
             // 加载文字方向
             OrientationComboBox.SelectedIndex = _settings.PoetryOrientation == TextOrientation.Horizontal ? 1 : 0;
@@ -437,26 +429,32 @@ namespace Wanzhi
         private void FontComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_settings == null) return;
-            if (FontComboBox.SelectedItem is ComboBoxItem item && item.Tag != null)
+
+            if (FontComboBox.SelectedValue is string font && !string.IsNullOrWhiteSpace(font))
             {
-                var font = item.Tag as string;
-                if (font != null)
-                {
-                    _settings.PoetryFontFamily = font;
-                }
+                _settings.PoetryFontFamily = font;
+                return;
+            }
+
+            if (FontComboBox.SelectedItem is FontItem item && !string.IsNullOrWhiteSpace(item.Source))
+            {
+                _settings.PoetryFontFamily = item.Source;
             }
         }
 
         private void AuthorFontComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_settings == null) return;
-            if (AuthorFontComboBox.SelectedItem is ComboBoxItem item && item.Tag != null)
+
+            if (AuthorFontComboBox.SelectedValue is string font && !string.IsNullOrWhiteSpace(font))
             {
-                var font = item.Tag as string;
-                if (font != null)
-                {
-                    _settings.AuthorFontFamily = font;
-                }
+                _settings.AuthorFontFamily = font;
+                return;
+            }
+
+            if (AuthorFontComboBox.SelectedItem is FontItem item && !string.IsNullOrWhiteSpace(item.Source))
+            {
+                _settings.AuthorFontFamily = item.Source;
             }
         }
 

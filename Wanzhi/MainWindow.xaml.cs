@@ -1066,193 +1066,195 @@ public partial class MainWindow : Window
                 InitializeBackgroundEffectRenderer();
             }
 
-            var desktopWallpaper = new DesktopWallpaperManager();
-            var distinctMonitorRects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            for (uint i = 0; i < desktopWallpaper.MonitorCount; i++)
+            using (var desktopWallpaper = new DesktopWallpaperManager())
             {
-                try
+                var distinctMonitorRects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                for (uint i = 0; i < desktopWallpaper.MonitorCount; i++)
                 {
-                    var monitorId = desktopWallpaper.GetMonitorDevicePathAt(i);
-                    if (string.IsNullOrWhiteSpace(monitorId))
-                    {
-                        continue;
-                    }
-
-                    var rect = desktopWallpaper.GetMonitorRect(monitorId);
-                    if (rect.Width <= 0 || rect.Height <= 0)
-                    {
-                        continue;
-                    }
-
-                    distinctMonitorRects.Add($"{rect.Left},{rect.Top},{rect.Right},{rect.Bottom}");
-                }
-                catch
-                {
-                }
-            }
-
-            App.Log($"Multi-monitor detected: count={desktopWallpaper.MonitorCount}, distinctRects={distinctMonitorRects.Count}");
-            if (distinctMonitorRects.Count > 1)
-            {
-                desktopWallpaper.SetPosition(DesktopWallpaperManager.DESKTOP_WALLPAPER_POSITION.Fill);
-
-                if (Content is not FrameworkElement rootElement)
-                {
-                    throw new Exception("无法获取窗口内容进行渲染");
-                }
-
-                var appDataPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Wanzhi");
-                System.IO.Directory.CreateDirectory(appDataPath);
-                App.Log($"Multi-monitor wallpaper output dir: {appDataPath}");
-
-                var batchId = applyBatchId;
-
-                var monitorWallpapers = new System.Collections.Generic.List<(string MonitorId, string FilePath)>();
-                var encodeTasks = new System.Collections.Generic.List<System.Threading.Tasks.Task>();
-
-                var originalWidth = rootElement.Width;
-                var originalHeight = rootElement.Height;
-
-                var variationRenderer = _backgroundEffectRenderer as IVariationOffsetRenderer;
-                var originalVariationOffset = _waveVariationOffset;
-
-                try
-                {
-                    for (uint i = 0; i < desktopWallpaper.MonitorCount; i++)
+                    try
                     {
                         var monitorId = desktopWallpaper.GetMonitorDevicePathAt(i);
-                        var rect = desktopWallpaper.GetMonitorRect(monitorId);
-                        var (monitorPixelWidth, monitorPixelHeight) = desktopWallpaper.GetMonitorPixelSize(monitorId);
-                        var (scaleX, scaleY) = desktopWallpaper.GetMonitorDpiScale(monitorId);
-
-                        App.Log($"Monitor[{i}]: id={monitorId}, rect={rect.Left},{rect.Top},{rect.Right},{rect.Bottom}, rectPx={rect.Width}x{rect.Height}, modePx={monitorPixelWidth}x{monitorPixelHeight}, scale={scaleX:F2}x{scaleY:F2}");
-
-                        var pixelWidth = monitorPixelWidth;
-                        var pixelHeight = monitorPixelHeight;
-                        if (pixelWidth <= 0 || pixelHeight <= 0)
+                        if (string.IsNullOrWhiteSpace(monitorId))
                         {
                             continue;
                         }
 
-                        var logicalWidth = pixelWidth / Math.Max(scaleX, 0.01);
-                        var logicalHeight = pixelHeight / Math.Max(scaleY, 0.01);
-
-                        rootElement.Width = logicalWidth;
-                        rootElement.Height = logicalHeight;
-                        rootElement.Measure(new Size(logicalWidth, logicalHeight));
-                        rootElement.Arrange(new Rect(0, 0, logicalWidth, logicalHeight));
-                        rootElement.UpdateLayout();
-
-                        // Ensure layout/render pipeline is flushed before capturing
-                        await Dispatcher.Yield(DispatcherPriority.Render);
-
-                        try
+                        var rect = desktopWallpaper.GetMonitorRect(monitorId);
+                        if (rect.Width <= 0 || rect.Height <= 0)
                         {
-                            WaveCanvas.ClearValue(FrameworkElement.WidthProperty);
-                            WaveCanvas.HorizontalAlignment = HorizontalAlignment.Stretch;
-                            WaveCanvas.UpdateLayout();
+                            continue;
+                        }
 
-                            if (_backgroundEffectRenderer != null)
+                        distinctMonitorRects.Add($"{rect.Left},{rect.Top},{rect.Right},{rect.Bottom}");
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                App.Log($"Multi-monitor detected: count={desktopWallpaper.MonitorCount}, distinctRects={distinctMonitorRects.Count}");
+                if (distinctMonitorRects.Count > 1)
+                {
+                    desktopWallpaper.SetPosition(DesktopWallpaperManager.DESKTOP_WALLPAPER_POSITION.Fill);
+
+                    if (Content is not FrameworkElement rootElement)
+                    {
+                        throw new Exception("无法获取窗口内容进行渲染");
+                    }
+
+                    var appDataPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Wanzhi");
+                    System.IO.Directory.CreateDirectory(appDataPath);
+                    App.Log($"Multi-monitor wallpaper output dir: {appDataPath}");
+
+                    var batchId = applyBatchId;
+
+                    var monitorWallpapers = new System.Collections.Generic.List<(string MonitorId, string FilePath)>();
+
+                    var originalWidth = rootElement.Width;
+                    var originalHeight = rootElement.Height;
+
+                    var variationRenderer = _backgroundEffectRenderer as IVariationOffsetRenderer;
+                    var originalVariationOffset = _waveVariationOffset;
+
+                    try
+                    {
+                        for (uint i = 0; i < desktopWallpaper.MonitorCount; i++)
+                        {
+                            var monitorId = desktopWallpaper.GetMonitorDevicePathAt(i);
+                            var rect = desktopWallpaper.GetMonitorRect(monitorId);
+                            var (monitorPixelWidth, monitorPixelHeight) = desktopWallpaper.GetMonitorPixelSize(monitorId);
+                            var (scaleX, scaleY) = desktopWallpaper.GetMonitorDpiScale(monitorId);
+
+                            App.Log($"Monitor[{i}]: id={monitorId}, rect={rect.Left},{rect.Top},{rect.Right},{rect.Bottom}, rectPx={rect.Width}x{rect.Height}, modePx={monitorPixelWidth}x{monitorPixelHeight}, scale={scaleX:F2}x{scaleY:F2}");
+
+                            var pixelWidth = monitorPixelWidth;
+                            var pixelHeight = monitorPixelHeight;
+                            if (pixelWidth <= 0 || pixelHeight <= 0)
                             {
-                                if (variationRenderer != null)
-                                {
-                                    var monitorOffset = ComputeMonitorVariationOffset(monitorId, rect);
-                                    // Add a base offset so each apply/theme change can still influence the overall feel,
-                                    // but each monitor stays distinct.
-                                    variationRenderer.SetVariationOffset(originalVariationOffset + monitorOffset);
-                                }
-
-                                var waveWidth = WaveCanvas.ActualWidth > 0
-                                    ? WaveCanvas.ActualWidth
-                                    : (rootElement.ActualWidth > 0 ? rootElement.ActualWidth : logicalWidth);
-
-                                var waveHeight = WaveCanvas.ActualHeight > 0
-                                    ? WaveCanvas.ActualHeight
-                                    : (WaveCanvas.Height > 0 ? WaveCanvas.Height : (rootElement.ActualHeight > 0 ? rootElement.ActualHeight : logicalHeight));
-
-                                _backgroundEffectRenderer.SetCanvasSize(waveWidth, waveHeight);
-                                _backgroundEffectRenderer.Update(0);
+                                continue;
                             }
 
+                            var logicalWidth = pixelWidth / Math.Max(scaleX, 0.01);
+                            var logicalHeight = pixelHeight / Math.Max(scaleY, 0.01);
+
+                            rootElement.Width = logicalWidth;
+                            rootElement.Height = logicalHeight;
+                            rootElement.Measure(new Size(logicalWidth, logicalHeight));
+                            rootElement.Arrange(new Rect(0, 0, logicalWidth, logicalHeight));
                             rootElement.UpdateLayout();
 
-                            // Do not recompute overlay during apply; capture current UI state
+                            // Ensure layout/render pipeline is flushed before capturing
+                            await Dispatcher.Yield(DispatcherPriority.Render);
 
-                            var renderBitmap = new RenderTargetBitmap(
-                                pixelWidth,
-                                pixelHeight,
-                                96.0 * scaleX,
-                                96.0 * scaleY,
-                                PixelFormats.Pbgra32);
-
-                            renderBitmap.Render(rootElement);
-
-                            // Freeze before handing over to background thread for encoding/writing.
-                            renderBitmap.Freeze();
-
-                            var tempWallpaperPath = System.IO.Path.Combine(appDataPath, $"wallpaper_{i}_{batchId}.tmp.png");
-                            var finalWallpaperPath = System.IO.Path.Combine(appDataPath, $"wallpaper_{i}.png");
-
-                            var frozenBitmap = renderBitmap;
-                            encodeTasks.Add(System.Threading.Tasks.Task.Run(() =>
+                            try
                             {
-                                using (var fileStream = new System.IO.FileStream(tempWallpaperPath, System.IO.FileMode.Create))
+                                WaveCanvas.ClearValue(FrameworkElement.WidthProperty);
+                                WaveCanvas.HorizontalAlignment = HorizontalAlignment.Stretch;
+                                WaveCanvas.UpdateLayout();
+
+                                if (_backgroundEffectRenderer != null)
                                 {
-                                    var encoder = new PngBitmapEncoder();
-                                    encoder.Frames.Add(BitmapFrame.Create(frozenBitmap));
-                                    encoder.Save(fileStream);
+                                    if (variationRenderer != null)
+                                    {
+                                        var monitorOffset = ComputeMonitorVariationOffset(monitorId, rect);
+                                        // Add a base offset so each apply/theme change can still influence the overall feel,
+                                        // but each monitor stays distinct.
+                                        variationRenderer.SetVariationOffset(originalVariationOffset + monitorOffset);
+                                    }
+
+                                    var waveWidth = WaveCanvas.ActualWidth > 0
+                                        ? WaveCanvas.ActualWidth
+                                        : (rootElement.ActualWidth > 0 ? rootElement.ActualWidth : logicalWidth);
+
+                                    var waveHeight = WaveCanvas.ActualHeight > 0
+                                        ? WaveCanvas.ActualHeight
+                                        : (WaveCanvas.Height > 0 ? WaveCanvas.Height : (rootElement.ActualHeight > 0 ? rootElement.ActualHeight : logicalHeight));
+
+                                    _backgroundEffectRenderer.SetCanvasSize(waveWidth, waveHeight);
+                                    _backgroundEffectRenderer.Update(0);
                                 }
 
-                                ReplaceFile(tempWallpaperPath, finalWallpaperPath);
-                            }));
+                                rootElement.UpdateLayout();
 
-                            monitorWallpapers.Add((monitorId ?? string.Empty, finalWallpaperPath));
+                                // Do not recompute overlay during apply; capture current UI state
 
-                            await Dispatcher.Yield(DispatcherPriority.Background);
+                                var renderBitmap = new RenderTargetBitmap(
+                                    pixelWidth,
+                                    pixelHeight,
+                                    96.0 * scaleX,
+                                    96.0 * scaleY,
+                                    PixelFormats.Pbgra32);
+
+                                renderBitmap.Render(rootElement);
+
+                                // Freeze before handing over to background thread for encoding/writing.
+                                renderBitmap.Freeze();
+
+                                var tempWallpaperPath = System.IO.Path.Combine(appDataPath, $"wallpaper_{i}_{batchId}.tmp.png");
+                                var finalWallpaperPath = System.IO.Path.Combine(appDataPath, $"wallpaper_{i}.png");
+
+                                var frozenBitmap = renderBitmap;
+                                await System.Threading.Tasks.Task.Run(() =>
+                                {
+                                    using (var fileStream = new System.IO.FileStream(tempWallpaperPath, System.IO.FileMode.Create))
+                                    {
+                                        var encoder = new PngBitmapEncoder();
+                                        encoder.Frames.Add(BitmapFrame.Create(frozenBitmap));
+                                        encoder.Save(fileStream);
+                                    }
+
+                                    ReplaceFile(tempWallpaperPath, finalWallpaperPath);
+                                });
+
+                                monitorWallpapers.Add((monitorId ?? string.Empty, finalWallpaperPath));
+
+                                await Dispatcher.Yield(DispatcherPriority.Background);
+                            }
+                            catch
+                            {
+                            }
                         }
-                        catch
+
+                        // Apply wallpapers after all files are fully written to reduce flicker/intermediate state
+                        for (var j = 0; j < monitorWallpapers.Count; j++)
                         {
+                            var (monitorId, wallpaperPath) = monitorWallpapers[j];
+                            App.Log($"Set monitor wallpaper (batched): index={j}, batch={batchId}, path={wallpaperPath}");
+                            desktopWallpaper.SetWallpaper(monitorId, wallpaperPath);
                         }
                     }
-
-                    // Wait for all PNG encoding/writing to finish before applying wallpapers.
-                    if (encodeTasks.Count > 0)
+                    finally
                     {
-                        await System.Threading.Tasks.Task.WhenAll(encodeTasks);
+                        if (variationRenderer != null)
+                        {
+                            variationRenderer.SetVariationOffset(originalVariationOffset);
+                        }
+
+                        rootElement.Width = originalWidth;
+                        rootElement.Height = originalHeight;
+                        rootElement.UpdateLayout();
                     }
 
-                    // Apply wallpapers after all files are fully written to reduce flicker/intermediate state
-                    for (var i = 0; i < monitorWallpapers.Count; i++)
+                    if (!silent)
                     {
-                        var (monitorId, wallpaperPath) = monitorWallpapers[i];
-                        App.Log($"Set monitor wallpaper (batched): index={i}, batch={batchId}, path={wallpaperPath}");
-                        desktopWallpaper.SetWallpaper(monitorId, wallpaperPath);
-                    }
-                }
-                finally
-                {
-                    if (variationRenderer != null)
-                    {
-                        variationRenderer.SetVariationOffset(originalVariationOffset);
+                        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+                        GC.WaitForPendingFinalizers();
+                        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
                     }
 
-                    rootElement.Width = originalWidth;
-                    rootElement.Height = originalHeight;
-                    rootElement.UpdateLayout();
-                }
+                    App.Log("Multi-monitor wallpaper applied successfully");
+                    if (!silent)
+                    {
+                        MessageBox.Show("壁纸设置成功！\n\n已为多屏分别生成图片并设置为系统桌面壁纸。", "万枝", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
 
-                App.Log("Multi-monitor wallpaper applied successfully");
-                if (!silent)
-                {
-                    MessageBox.Show("壁纸设置成功！\n\n已为多屏分别生成图片并设置为系统桌面壁纸。", "万枝", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
+                    if (Visibility != Visibility.Visible)
+                    {
+                        WaveCanvas.Visibility = Visibility.Collapsed;
+                    }
 
-                if (Visibility != Visibility.Visible)
-                {
-                    WaveCanvas.Visibility = Visibility.Collapsed;
+                    return;
                 }
-
-                return;
             }
         }
         catch (Exception ex)

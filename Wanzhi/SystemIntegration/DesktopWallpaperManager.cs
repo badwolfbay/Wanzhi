@@ -3,13 +3,31 @@ using System.Runtime.InteropServices;
 
 namespace Wanzhi.SystemIntegration
 {
-    internal sealed class DesktopWallpaperManager
+    internal sealed class DesktopWallpaperManager : IDisposable
     {
         private readonly IDesktopWallpaper _wallpaper;
+        private bool _disposed;
 
         public DesktopWallpaperManager()
         {
             _wallpaper = (IDesktopWallpaper)new DesktopWallpaperClass();
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            try
+            {
+                if (Marshal.IsComObject(_wallpaper))
+                {
+                    Marshal.FinalReleaseComObject(_wallpaper);
+                }
+            }
+            catch
+            {
+            }
         }
 
         public uint MonitorCount => _wallpaper.GetMonitorDevicePathCount();
