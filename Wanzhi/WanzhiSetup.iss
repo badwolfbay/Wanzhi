@@ -4,7 +4,7 @@
 #define MyAppName "万枝"
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "Wanzhi"
-#define MyAppExeName "Wanzhi.exe"
+#define MyAppExeName "Wanzhi.TrayHost.exe"
 #define MyAppAssocName "Wanzhi Document"
 #define MyAppAssocExt ".wanzhi"
 #define MyAppAssocKey StringChange(MyAppAssocName, " ", "") + MyAppAssocExt
