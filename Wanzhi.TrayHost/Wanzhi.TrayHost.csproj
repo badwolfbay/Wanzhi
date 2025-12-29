@@ -12,6 +12,7 @@
   <ItemGroup>
     <None Include="..\Wanzhi\Resources\logo.ico" Link="Resources\logo.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
   </ItemGroup>
 

@@ -22,7 +22,7 @@ jobs:
         dotnet-version: '8.0.x'
         
     - name: Restore dependencies
-      run: dotnet restore Wanzhi/Wanzhi.csproj
+      run: dotnet restore Wanzhi.sln
       
     - name: Build Portable (Framework-Dependent)
       run: dotnet publish Wanzhi/Wanzhi.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:IncludeAllContentForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false -o publish_framework
@@ -30,8 +30,16 @@ jobs:
     - name: Build Portable (Self-Contained)
       run: dotnet publish Wanzhi/Wanzhi.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -p:DebugType=None -p:DebugSymbols=false -o publish_selfcontained
 
+    - name: Build TrayHost (Framework-Dependent)
+      run: dotnet publish Wanzhi.TrayHost/Wanzhi.TrayHost.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o publish_tray
+
     - name: Build Installer Payload
       run: dotnet publish Wanzhi/Wanzhi.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:IncludeAllContentForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false -o publish
+
+    - name: Merge TrayHost into payload
+      run: |
+        Copy-Item -Path publish_tray\* -Destination publish\ -Recurse -Force
+      shell: pwsh
       
     - name: Create portable packages
       run: |
