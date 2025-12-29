@@ -160,6 +160,13 @@ namespace Wanzhi.Settings
             set { _showTraditionalColorNameOnRight = value; OnPropertyChanged(); }
         }
 
+        private bool _showFullPoetry = false;
+        public bool ShowFullPoetry
+        {
+            get => _showFullPoetry;
+            set { _showFullPoetry = value; OnPropertyChanged(); }
+        }
+
         // 开机自启
         private bool _autoStart = false;
         public bool AutoStart

@@ -180,6 +180,14 @@
                                           VerticalAlignment="Center"
                                           Checked="ShowTraditionalColorNameOnRightCheckBox_Changed"
                                           Unchecked="ShowTraditionalColorNameOnRightCheckBox_Changed"/>
+
+                                <CheckBox x:Name="ShowFullPoetryCheckBox"
+                                          Content="显示完整版诗词"
+                                          Margin="0,10,0,0"
+                                          IsChecked="False"
+                                          VerticalAlignment="Center"
+                                          Checked="ShowFullPoetryCheckBox_Changed"
+                                          Unchecked="ShowFullPoetryCheckBox_Changed"/>
                             </StackPanel>
                         </GroupBox>
                     </StackPanel>

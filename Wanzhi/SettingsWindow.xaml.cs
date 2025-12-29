@@ -290,6 +290,11 @@ namespace Wanzhi
                 ShowTraditionalColorNameOnRightCheckBox.IsChecked = _settings.ShowTraditionalColorNameOnRight;
             }
 
+            if (ShowFullPoetryCheckBox != null)
+            {
+                ShowFullPoetryCheckBox.IsChecked = _settings.ShowFullPoetry;
+            }
+
             // 加载字符间距设置
             PoetryCharacterSpacingSlider.Value = _settings.PoetryCharacterSpacing;
             PoetryVerticalCharacterSpacingSlider.Value = _settings.PoetryVerticalCharacterSpacing;
@@ -317,6 +322,12 @@ namespace Wanzhi
         {
             if (_settings == null) return;
             _settings.ShowTraditionalColorNameOnRight = ShowTraditionalColorNameOnRightCheckBox.IsChecked == true;
+        }
+
+        private void ShowFullPoetryCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_settings == null) return;
+            _settings.ShowFullPoetry = ShowFullPoetryCheckBox.IsChecked == true;
         }
 
         private void UpdateColorButtonBackground()

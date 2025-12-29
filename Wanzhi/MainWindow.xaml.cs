@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
@@ -392,6 +393,28 @@ public partial class MainWindow : Window
         return color;
     }
 
+    private static string GetPoetryMainText(PoetryData poetry, AppSettings settings)
+    {
+        if (settings.ShowFullPoetry)
+        {
+            var lines = poetry.Origin?.Content;
+            if (lines != null)
+            {
+                var cleaned = lines
+                    .Where(l => !string.IsNullOrWhiteSpace(l))
+                    .Select(l => l.Trim())
+                    .ToList();
+
+                if (cleaned.Count > 0)
+                {
+                    return string.Join("\n", cleaned);
+                }
+            }
+        }
+
+        return poetry.Content ?? string.Empty;
+    }
+
     private void UpdatePoetryDisplay(PoetryData poetry, bool updateBackground)
     {
         System.Threading.Interlocked.Increment(ref _diagUpdatePoetryUiCalls);
@@ -495,7 +518,9 @@ public partial class MainWindow : Window
         PoetryContainer.VerticalAlignment = columnAlignment;
 
         // 1. 处理正文 (从右向左排列，第一句在最右)
-        var sentences = poetry.Content.Split(new[] { '，', '。', '？', '！', '；', ',', '.', '?', '!', ';' }, StringSplitOptions.RemoveEmptyEntries);
+        var settings = AppSettings.Instance;
+        var mainText = GetPoetryMainText(poetry, settings);
+        var sentences = mainText.Split(new[] { '，', '。', '？', '！', '；', ',', '.', '?', '!', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
 
         foreach (var sentence in sentences)
         {
@@ -598,7 +623,9 @@ public partial class MainWindow : Window
         PoetryContainer.VerticalAlignment = VerticalAlignment.Center;
 
         // 1. 处理正文
-        var sentences = poetry.Content.Split(new[] { '，', '。', '？', '！', '；', ',', '.', '?', '!', ';' }, StringSplitOptions.RemoveEmptyEntries);
+        var settings = AppSettings.Instance;
+        var mainText = GetPoetryMainText(poetry, settings);
+        var sentences = mainText.Split(new[] { '，', '。', '？', '！', '；', ',', '.', '?', '!', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
 
         var contentStack = new StackPanel
         {
@@ -1002,6 +1029,7 @@ public partial class MainWindow : Window
             case nameof(AppSettings.PoetryOrientation):
             case nameof(AppSettings.VerticalPoetryAlignment):
             case nameof(AppSettings.HorizontalPoetryAlignment):
+            case nameof(AppSettings.ShowFullPoetry):
                 // 重新加载诗词以应用新样式
                 if (_currentPoetry != null)
                 {
