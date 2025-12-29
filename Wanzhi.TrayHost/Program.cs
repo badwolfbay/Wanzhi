@@ -76,15 +76,11 @@ internal sealed class TrayApplicationContext : ApplicationContext
         var refresh = new ToolStripMenuItem("刷新诗词(&R)");
         refresh.Click += (_, _) => LaunchWorker("refresh", silent: true);
 
-        var apply = new ToolStripMenuItem("应用壁纸(&A)");
-        apply.Click += (_, _) => LaunchWorker("apply", silent: true);
-
         var exit = new ToolStripMenuItem("退出(&X)");
         exit.Click += (_, _) => ExitApplication();
 
         menu.Items.Add(settings);
         menu.Items.Add(refresh);
-        menu.Items.Add(apply);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(exit);
 
