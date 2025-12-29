@@ -10,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
+using Newtonsoft.Json;
 using Wanzhi.Models;
 using Wanzhi.Rendering;
 using Wanzhi.Services;
@@ -24,7 +25,10 @@ namespace Wanzhi;
 public partial class MainWindow : Window
 {
     private readonly JinrishiciService _poetryService;
+    private readonly bool _startupUpdateBackground;
+    private readonly bool _startupLoadPoetry;
     private IBackgroundEffectRenderer? _backgroundEffectRenderer;
+
     private readonly DispatcherTimer _poetryRefreshTimer;
     private readonly DispatcherTimer _diagTimer;
     private readonly ThemeDetector _themeDetector;
@@ -60,14 +64,42 @@ public partial class MainWindow : Window
         }
     }
 
+    private static uint StableHash32(string? s)
+    {
+        unchecked
+        {
+            if (string.IsNullOrEmpty(s)) return 0;
+            uint hash = 2166136261;
+            for (var i = 0; i < s.Length; i++)
+            {
+                var c = char.ToLowerInvariant(s[i]);
+                hash ^= c;
+                hash *= 16777619;
+            }
+            return hash;
+        }
+    }
+
+    private static uint Mix32(uint hash, int value)
+    {
+        unchecked
+        {
+            hash ^= (uint)value;
+            hash *= 16777619;
+            return hash;
+        }
+    }
+
     private static double ComputeMonitorVariationOffset(string? monitorId, DesktopWallpaperManager.RECT rect)
     {
         unchecked
         {
-            var idHash = monitorId != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(monitorId) : 0;
-            var seed = HashCode.Combine(idHash, rect.Left, rect.Top, rect.Right, rect.Bottom);
-            // Map deterministic int seed to [0, 2π)
-            var u = (uint)seed;
+            var u = StableHash32(monitorId);
+            u = Mix32(u, rect.Left);
+            u = Mix32(u, rect.Top);
+            u = Mix32(u, rect.Right);
+            u = Mix32(u, rect.Bottom);
+            // Map deterministic uint seed to [0, 2π)
             var t = u / (double)uint.MaxValue;
             return t * Math.PI * 2.0;
         }
@@ -91,8 +123,18 @@ public partial class MainWindow : Window
     private const int SPIF_UPDATEINIFILE = 0x01;
     private const int SPIF_SENDCHANGE = 0x02;
 
-    public MainWindow()
+    public MainWindow() : this(startupUpdateBackground: true, startupLoadPoetry: true)
     {
+    }
+
+    public MainWindow(bool startupUpdateBackground) : this(startupUpdateBackground, startupLoadPoetry: true)
+    {
+    }
+
+    public MainWindow(bool startupUpdateBackground, bool startupLoadPoetry)
+    {
+        _startupUpdateBackground = startupUpdateBackground;
+        _startupLoadPoetry = startupLoadPoetry;
         InitializeComponent();
 
         _poetryService = new JinrishiciService();
@@ -145,7 +187,14 @@ public partial class MainWindow : Window
         WaveCanvas.Visibility = Visibility.Collapsed;
 
         // 加载诗词（后台异步，不阻塞启动）
-        _ = LoadPoetryAsync(updateBackground: true);
+        if (_startupLoadPoetry)
+        {
+            _ = LoadPoetryAsync(updateBackground: _startupUpdateBackground);
+        }
+        else
+        {
+            TryLoadPoetryFromCache();
+        }
 
         // 设置诗词刷新间隔
         UpdateRefreshInterval();
@@ -153,6 +202,51 @@ public partial class MainWindow : Window
         App.Log("App Initialized.");
 
         return System.Threading.Tasks.Task.CompletedTask;
+    }
+
+    private static string GetPoetryCachePath()
+    {
+        var appDataPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Wanzhi");
+        System.IO.Directory.CreateDirectory(appDataPath);
+        return System.IO.Path.Combine(appDataPath, "poetry_cache.json");
+    }
+
+    private void TryLoadPoetryFromCache()
+    {
+        try
+        {
+            var path = GetPoetryCachePath();
+            if (!File.Exists(path))
+            {
+                return;
+            }
+
+            var json = File.ReadAllText(path);
+            var cached = JsonConvert.DeserializeObject<PoetryData>(json);
+            if (cached == null)
+            {
+                return;
+            }
+
+            _currentPoetry = cached;
+            UpdatePoetryDisplay(cached, updateBackground: false);
+        }
+        catch
+        {
+        }
+    }
+
+    private static void TrySavePoetryToCache(PoetryData poetry)
+    {
+        try
+        {
+            var path = GetPoetryCachePath();
+            var json = JsonConvert.SerializeObject(poetry);
+            File.WriteAllText(path, json);
+        }
+        catch
+        {
+        }
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -190,7 +284,22 @@ public partial class MainWindow : Window
     private void InitializeBackgroundEffectRenderer()
     {
         var width = SystemParameters.PrimaryScreenWidth;
-        var effect = AppSettings.Instance.BackgroundEffect;
+        var settings = AppSettings.Instance;
+        var effect = settings.BackgroundEffect;
+
+        var seedBase = settings.BackgroundSeed;
+        if (seedBase == 0)
+        {
+            seedBase = Environment.TickCount;
+            settings.BackgroundSeed = seedBase;
+            settings.Save();
+        }
+
+        unchecked
+        {
+            var u = (uint)seedBase;
+            _waveVariationOffset = (u / (double)uint.MaxValue) * Math.PI * 2.0;
+        }
 
         // Wave uses a bottom strip, other effects fill the entire screen.
         if (effect == BackgroundEffectType.Wave)
@@ -210,8 +319,8 @@ public partial class MainWindow : Window
 
         IBackgroundEffectRenderer renderer = effect switch
         {
-            BackgroundEffectType.Bubbles => new BubblesRenderer(width, height, 12),
-            BackgroundEffectType.Blobs => new BlobsRenderer(width, height, 10),
+            BackgroundEffectType.Bubbles => new BubblesRenderer(width, height, 12, seedBase),
+            BackgroundEffectType.Blobs => new BlobsRenderer(width, height, 10, seedBase),
             _ => new WaveRenderer(width, height, 5)
         };
 
@@ -305,6 +414,7 @@ public partial class MainWindow : Window
         {
             App.Log($"诗词加载成功: {poetry.Content.Substring(0, Math.Min(5, poetry.Content.Length))}...");
             _currentPoetry = poetry;
+            TrySavePoetryToCache(poetry);
             UpdatePoetryDisplay(poetry, updateBackground);
 
             var settings = AppSettings.Instance;
@@ -1053,6 +1163,12 @@ public partial class MainWindow : Window
         }
     }
 
+    public async System.Threading.Tasks.Task ApplyWallpaperWithPoetryAsync(bool updateBackground, bool silent)
+    {
+        await LoadPoetryAsync(updateBackground: updateBackground);
+        await ApplyAsWallpaperAsync(silent: silent);
+    }
+
     public void RefreshPoetry()
     {
         var settings = AppSettings.Instance;
@@ -1063,6 +1179,7 @@ public partial class MainWindow : Window
     {
         System.Threading.Interlocked.Increment(ref _diagApplyWallpaperCalls);
         var applyBatchId = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss_fff");
+
         App.Log($"ApplyAsWallpaper called (Static Image Mode). batch={applyBatchId}");
 
         void ReplaceFile(string tempPath, string finalPath)

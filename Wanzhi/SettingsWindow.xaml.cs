@@ -147,6 +147,7 @@ namespace Wanzhi
         private AppSettings _settings;
         private System.Windows.Media.Color _selectedColor;
         private System.Windows.Media.Color _selectedWaveColor;
+        private bool _isRefreshingState;
 
         private sealed class FontItem
         {
@@ -222,6 +223,9 @@ namespace Wanzhi
 
         public void RefreshState()
         {
+            _isRefreshingState = true;
+            try
+            {
             // 加载主题设置
             ThemeComboBox.SelectedIndex = _settings.Theme switch
             {
@@ -310,23 +314,28 @@ namespace Wanzhi
 
             // 加载系统设置
             AutoStartCheckBox.IsChecked = StartupManager.IsStartupEnabled();
+            }
+            finally
+            {
+                _isRefreshingState = false;
+            }
         }
 
         private void RandomTraditionalWaveColorOnRefreshCheckBox_Changed(object sender, RoutedEventArgs e)
         {
-            if (_settings == null) return;
+            if (_settings == null || _isRefreshingState) return;
             _settings.RandomTraditionalWaveColorOnRefresh = RandomTraditionalWaveColorOnRefreshCheckBox.IsChecked == true;
         }
 
         private void ShowTraditionalColorNameOnRightCheckBox_Changed(object sender, RoutedEventArgs e)
         {
-            if (_settings == null) return;
+            if (_settings == null || _isRefreshingState) return;
             _settings.ShowTraditionalColorNameOnRight = ShowTraditionalColorNameOnRightCheckBox.IsChecked == true;
         }
 
         private void ShowFullPoetryCheckBox_Changed(object sender, RoutedEventArgs e)
         {
-            if (_settings == null) return;
+            if (_settings == null || _isRefreshingState) return;
             _settings.ShowFullPoetry = ShowFullPoetryCheckBox.IsChecked == true;
         }
 
@@ -362,8 +371,7 @@ namespace Wanzhi
 
         private void ThemeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // 防止在初始化期间触发
-            if (_settings == null) return;
+            if (_settings == null || _isRefreshingState) return;
             
             if (ThemeComboBox.SelectedItem is ComboBoxItem item)
             {
@@ -379,7 +387,7 @@ namespace Wanzhi
 
         private void BackgroundEffectComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (_settings == null) return;
+            if (_settings == null || _isRefreshingState) return;
 
             if (BackgroundEffectComboBox.SelectedItem is ComboBoxItem item)
             {
@@ -439,7 +447,7 @@ namespace Wanzhi
 
         private void FontComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (_settings == null) return;
+            if (_settings == null || _isRefreshingState) return;
 
             if (FontComboBox.SelectedValue is string font && !string.IsNullOrWhiteSpace(font))
             {
@@ -455,7 +463,7 @@ namespace Wanzhi
 
         private void AuthorFontComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (_settings == null) return;
+            if (_settings == null || _isRefreshingState) return;
 
             if (AuthorFontComboBox.SelectedValue is string font && !string.IsNullOrWhiteSpace(font))
             {
@@ -471,7 +479,7 @@ namespace Wanzhi
 
         private void OrientationComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (_settings == null) return;
+            if (_settings == null || _isRefreshingState) return;
             if (OrientationComboBox.SelectedItem is ComboBoxItem item && item.Tag != null)
             {
                 _settings.PoetryOrientation = item.Tag.ToString() switch
@@ -487,7 +495,7 @@ namespace Wanzhi
 
         private void VerticalAlignComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (_settings == null) return;
+            if (_settings == null || _isRefreshingState) return;
             if (VerticalAlignComboBox.SelectedItem is ComboBoxItem item && item.Tag != null)
             {
                 _settings.VerticalPoetryAlignment = item.Tag.ToString() switch
@@ -501,7 +509,7 @@ namespace Wanzhi
 
         private void HorizontalAlignComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (_settings == null) return;
+            if (_settings == null || _isRefreshingState) return;
             if (HorizontalAlignComboBox.SelectedItem is ComboBoxItem item && item.Tag != null)
             {
                 _settings.HorizontalPoetryAlignment = item.Tag.ToString() switch
@@ -515,7 +523,7 @@ namespace Wanzhi
 
         private void PoetryFontSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (_settings == null || PoetryFontSizeText == null) return;
+            if (_settings == null || PoetryFontSizeText == null || _isRefreshingState) return;
             var value = (int)e.NewValue;
             PoetryFontSizeText.Text = value.ToString();
             _settings.PoetryFontSize = value;
@@ -523,7 +531,7 @@ namespace Wanzhi
 
         private void AuthorFontSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (_settings == null || AuthorFontSizeText == null) return;
+            if (_settings == null || AuthorFontSizeText == null || _isRefreshingState) return;
             var value = (int)e.NewValue;
             AuthorFontSizeText.Text = value.ToString();
             _settings.AuthorFontSize = value;
@@ -531,7 +539,7 @@ namespace Wanzhi
 
         private void PoetryCharacterSpacingSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (_settings == null || PoetryCharacterSpacingText == null) return;
+            if (_settings == null || PoetryCharacterSpacingText == null || _isRefreshingState) return;
             var value = (int)e.NewValue;
             PoetryCharacterSpacingText.Text = value.ToString();
             _settings.PoetryCharacterSpacing = value;
@@ -539,7 +547,7 @@ namespace Wanzhi
 
         private void PoetryVerticalCharacterSpacingSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (_settings == null || PoetryVerticalCharacterSpacingText == null) return;
+            if (_settings == null || PoetryVerticalCharacterSpacingText == null || _isRefreshingState) return;
             var value = (int)e.NewValue;
             PoetryVerticalCharacterSpacingText.Text = value.ToString();
             _settings.PoetryVerticalCharacterSpacing = value;
@@ -547,7 +555,7 @@ namespace Wanzhi
 
         private void RefreshIntervalSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (_settings == null || RefreshIntervalText == null) return;
+            if (_settings == null || RefreshIntervalText == null || _isRefreshingState) return;
             var value = (int)e.NewValue;
             RefreshIntervalText.Text = value.ToString();
             _settings.RefreshIntervalMinutes = value;
@@ -555,7 +563,7 @@ namespace Wanzhi
 
         private void VerticalPoetryOffsetSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (_settings == null || VerticalPoetryOffsetText == null) return;
+            if (_settings == null || VerticalPoetryOffsetText == null || _isRefreshingState) return;
             var value = (int)e.NewValue;
             VerticalPoetryOffsetText.Text = value.ToString();
             _settings.VerticalPoetryOffset = value;
@@ -563,7 +571,7 @@ namespace Wanzhi
 
         private void HorizontalPoetryOffsetSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (_settings == null || HorizontalPoetryOffsetText == null) return;
+            if (_settings == null || HorizontalPoetryOffsetText == null || _isRefreshingState) return;
             var value = (int)e.NewValue;
             HorizontalPoetryOffsetText.Text = value.ToString();
             _settings.HorizontalPoetryOffset = value;
@@ -571,6 +579,7 @@ namespace Wanzhi
 
         private void AutoStartCheckBox_Changed(object sender, RoutedEventArgs e)
         {
+            if (_isRefreshingState) return;
             var enabled = AutoStartCheckBox.IsChecked ?? false;
             StartupManager.SetStartup(enabled);
             _settings.AutoStart = enabled;

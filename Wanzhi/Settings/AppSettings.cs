@@ -167,6 +167,13 @@ namespace Wanzhi.Settings
             set { _showFullPoetry = value; OnPropertyChanged(); }
         }
 
+        private int _backgroundSeed = 0;
+        public int BackgroundSeed
+        {
+            get => _backgroundSeed;
+            set { _backgroundSeed = value; OnPropertyChanged(); }
+        }
+
         // 开机自启
         private bool _autoStart = false;
         public bool AutoStart

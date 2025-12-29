@@ -1,8 +1,11 @@
 ﻿using System;
+using System.IO;
+using System.IO.Pipes;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
-using Hardcodet.Wpf.TaskbarNotification;
 using Wanzhi.Settings;
+using Wanzhi.SystemIntegration;
 
 namespace Wanzhi;
 
@@ -14,7 +17,11 @@ public partial class App : Application
     private static Mutex? _mutex;
     private MainWindow? _mainWindow;
     private SettingsWindow? _settingsWindow;
-    private TaskbarIcon? _trayIcon;
+
+    private string _workerMode = "settings";
+    private bool _silent;
+    private string _pipeName = "WanzhiSettingsPipe";
+    private CancellationTokenSource? _settingsPipeCts;
 
     public App()
     {
@@ -23,41 +30,197 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
     }
 
-    protected override void OnStartup(StartupEventArgs e)
+    private void ParseWorkerArgs(string[] args)
     {
-        Log("Application Starting...");
-        
-        // 确保单实例运行
-        const string mutexName = "WanzhiWallpaperApp";
-        _mutex = new Mutex(true, mutexName, out bool createdNew);
+        string? mode = null;
+        string? silent = null;
+        string? pipe = null;
 
-        if (!createdNew)
+        for (var i = 0; i < args.Length; i++)
         {
-            Log("Application already running. Exiting.");
-            MessageBox.Show("万枝已在运行中！", "万枝", MessageBoxButton.OK, MessageBoxImage.Information);
-            Shutdown();
+            var a = args[i];
+            if (string.Equals(a, "--mode", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                mode = args[++i];
+                continue;
+            }
+
+            if (string.Equals(a, "--silent", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                silent = args[++i];
+                continue;
+            }
+
+            if (string.Equals(a, "--pipe", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                pipe = args[++i];
+                continue;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(mode))
+        {
+            _workerMode = mode;
+        }
+
+        if (!string.IsNullOrWhiteSpace(silent) && bool.TryParse(silent, out var parsedSilent))
+        {
+            _silent = parsedSilent;
+        }
+
+        if (!string.IsNullOrWhiteSpace(pipe))
+        {
+            _pipeName = pipe;
+        }
+    }
+
+    private static bool TryActivateExistingSettings(string pipeName)
+    {
+        try
+        {
+            using var client = new NamedPipeClientStream(".", pipeName, PipeDirection.Out);
+            client.Connect(150);
+            using var writer = new StreamWriter(client) { AutoFlush = true };
+            writer.WriteLine("activate");
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task RunSettingsPipeServerAsync(string pipeName, CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                using var server = new NamedPipeServerStream(
+                    pipeName,
+                    PipeDirection.In,
+                    maxNumberOfServerInstances: 1,
+                    PipeTransmissionMode.Byte,
+                    PipeOptions.Asynchronous);
+
+                await server.WaitForConnectionAsync(ct);
+
+                using var reader = new StreamReader(server);
+                var line = await reader.ReadLineAsync();
+                if (string.Equals(line, "activate", StringComparison.OrdinalIgnoreCase))
+                {
+                    Dispatcher.Invoke(ActivateSettings);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    private void ActivateSettings()
+    {
+        if (_settingsWindow == null)
+        {
+            ShowSettings();
             return;
         }
 
+        _settingsWindow.RefreshState();
+        _settingsWindow.Show();
+        _settingsWindow.Activate();
+
+        if (_settingsWindow.WindowState == WindowState.Minimized)
+        {
+            _settingsWindow.WindowState = WindowState.Normal;
+        }
+    }
+
+    protected override async void OnStartup(StartupEventArgs e)
+    {
+        Log("Application Starting...");
+        
         base.OnStartup(e);
+
+        ParseWorkerArgs(e.Args);
 
         try 
         {
-            Log("Creating MainWindow...");
-            // 创建主窗口但不显示
-            _mainWindow = new MainWindow();
-            this.MainWindow = _mainWindow; // 设置为主窗口，防止程序自动退出
-            // 不要立即调用 Hide()，让 Window_Loaded 有机会触发
-            Log("MainWindow created.");
+            if (string.Equals(_workerMode, "apply", StringComparison.OrdinalIgnoreCase))
+            {
+                var ok = ApplyCachedWallpaper(silent: _silent);
+                if (!ok && !_silent)
+                {
+                    MessageBox.Show("未找到已生成的壁纸缓存。\n\n请先使用“刷新诗词”或在设置中预览生成一次壁纸。", "万枝", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                Shutdown();
+                return;
+            }
 
-            // 初始化系统托盘图标
-            _trayIcon = (TaskbarIcon)FindResource("TrayIcon");
-            Log("TrayIcon initialized.");
+            if (string.Equals(_workerMode, "refresh", StringComparison.OrdinalIgnoreCase))
+            {
+                Log("Creating MainWindow...");
+                _mainWindow = new MainWindow(startupUpdateBackground: false, startupLoadPoetry: false);
+                this.MainWindow = _mainWindow;
+                Log("MainWindow created.");
+
+                _mainWindow.Hide();
+                await _mainWindow.ApplyWallpaperWithPoetryAsync(updateBackground: false, silent: _silent);
+                _mainWindow.Close();
+                Shutdown();
+                return;
+            }
+
+            // 确保单实例运行
+            const string mutexName = "WanzhiWallpaperApp";
+            _mutex = new Mutex(true, mutexName, out bool createdNew);
+
+            if (!createdNew)
+            {
+                Log("Application already running. Activating settings via pipe.");
+                if (TryActivateExistingSettings(_pipeName))
+                {
+                    Shutdown();
+                    return;
+                }
+
+                MessageBox.Show("万枝已在运行中！", "万枝", MessageBoxButton.OK, MessageBoxImage.Information);
+                Shutdown();
+                return;
+            }
+
+            _settingsPipeCts = new CancellationTokenSource();
+            _ = RunSettingsPipeServerAsync(_pipeName, _settingsPipeCts.Token);
 
             // 直接显示设置窗口
-            Dispatcher.BeginInvoke(new Action(() =>
+            _ = Dispatcher.BeginInvoke(new Action(() =>
             {
+                if (_mainWindow == null)
+                {
+                    _mainWindow = new MainWindow(startupUpdateBackground: false, startupLoadPoetry: false);
+                    _mainWindow.Hide();
+                }
+
                 ShowSettings();
+                if (_settingsWindow != null)
+                {
+                    this.MainWindow = _settingsWindow;
+                    _settingsWindow.Closed += (_, _) =>
+                    {
+                        try
+                        {
+                            _mainWindow?.Close();
+                        }
+                        catch
+                        {
+                        }
+                        Shutdown();
+                    };
+                }
             }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         }
         catch (Exception ex)
@@ -65,6 +228,84 @@ public partial class App : Application
             Log($"Error creating MainWindow: {ex}");
             MessageBox.Show($"启动失败: {ex.Message}\n\n{ex.StackTrace}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown();
+        }
+    }
+
+    private static string GetAppDataPath()
+    {
+        var appDataPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Wanzhi");
+        System.IO.Directory.CreateDirectory(appDataPath);
+        return appDataPath;
+    }
+
+    private static bool ApplyCachedWallpaper(bool silent)
+    {
+        try
+        {
+            var appDataPath = GetAppDataPath();
+            var singlePath = System.IO.Path.Combine(appDataPath, "wallpaper.png");
+
+            using var desktopWallpaper = new DesktopWallpaperManager();
+            desktopWallpaper.SetPosition(DesktopWallpaperManager.DESKTOP_WALLPAPER_POSITION.Fill);
+
+            var monitorCount = desktopWallpaper.MonitorCount;
+            if (monitorCount == 0)
+            {
+                return false;
+            }
+
+            var hasAnyPerMonitor = false;
+            for (uint i = 0; i < monitorCount; i++)
+            {
+                var per = System.IO.Path.Combine(appDataPath, $"wallpaper_{i}.png");
+                if (File.Exists(per))
+                {
+                    hasAnyPerMonitor = true;
+                    break;
+                }
+            }
+
+            if (hasAnyPerMonitor)
+            {
+                var allOk = true;
+                for (uint i = 0; i < monitorCount; i++)
+                {
+                    var monitorId = desktopWallpaper.GetMonitorDevicePathAt(i);
+                    var per = System.IO.Path.Combine(appDataPath, $"wallpaper_{i}.png");
+                    var path = File.Exists(per) ? per : (File.Exists(singlePath) ? singlePath : null);
+                    if (path == null)
+                    {
+                        allOk = false;
+                        continue;
+                    }
+                    desktopWallpaper.SetWallpaper(monitorId, path);
+                }
+                return allOk;
+            }
+
+            if (!File.Exists(singlePath))
+            {
+                return false;
+            }
+
+            for (uint i = 0; i < monitorCount; i++)
+            {
+                var monitorId = desktopWallpaper.GetMonitorDevicePathAt(i);
+                desktopWallpaper.SetWallpaper(monitorId, singlePath);
+            }
+
+            if (!silent)
+            {
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+                GC.WaitForPendingFinalizers();
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
         }
     }
 
@@ -104,6 +345,7 @@ public partial class App : Application
             if (_settingsWindow != null && _settingsWindow.IsLoaded)
             {
                 Log("SettingsWindow already exists, activating.");
+                _settingsWindow.CanClose = true;
                 _settingsWindow.RefreshState(); // 刷新状态以显示最新设置
                 _settingsWindow.Show();
                 _settingsWindow.Activate();
@@ -119,6 +361,7 @@ public partial class App : Application
             // 否则创建新窗口
             Log("Creating new SettingsWindow.");
             _settingsWindow = new SettingsWindow();
+            _settingsWindow.CanClose = true;
             
             if (_mainWindow != null && _mainWindow.IsLoaded)
             {
@@ -142,17 +385,23 @@ public partial class App : Application
         try
         {
             Log("ShowMainWindow called.");
-            if (_mainWindow != null)
+            var window = _mainWindow;
+            var created = false;
+            if (window == null)
             {
-                Log("Applying static wallpaper.");
-                _mainWindow.Hide();
-                await _mainWindow.ApplyAsWallpaperAsync();
-
-                Log("MainWindow wallpaper applied or attached.");
+                window = new MainWindow(startupUpdateBackground: false, startupLoadPoetry: false);
+                created = true;
             }
-            else
+
+            Log("Applying static wallpaper.");
+            window.Hide();
+            await window.ApplyAsWallpaperAsync(silent: _silent);
+
+            Log("MainWindow wallpaper applied or attached.");
+
+            if (created)
             {
-                Log("MainWindow is null, cannot show.");
+                window.Close();
             }
         }
         catch (Exception ex)
@@ -194,6 +443,15 @@ public partial class App : Application
         // 清理资源
         _mutex?.ReleaseMutex();
         _mutex?.Dispose();
+
+        try
+        {
+            _settingsPipeCts?.Cancel();
+            _settingsPipeCts?.Dispose();
+        }
+        catch
+        {
+        }
 
         // 保存设置
         AppSettings.Instance.Save();

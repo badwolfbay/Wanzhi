@@ -5,6 +5,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wanzhi", "Wanzhi\Wanzhi.csproj", "{95AE1E39-0B44-4F0C-93DE-669D136D8ACD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wanzhi.TrayHost", "Wanzhi.TrayHost\Wanzhi.TrayHost.csproj", "{C5C2C2AD-6E1B-4A7C-8A0F-72F86C0C0B2A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{95AE1E39-0B44-4F0C-93DE-669D136D8ACD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{95AE1E39-0B44-4F0C-93DE-669D136D8ACD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{95AE1E39-0B44-4F0C-93DE-669D136D8ACD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C5C2C2AD-6E1B-4A7C-8A0F-72F86C0C0B2A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C5C2C2AD-6E1B-4A7C-8A0F-72F86C0C0B2A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C5C2C2AD-6E1B-4A7C-8A0F-72F86C0C0B2A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C5C2C2AD-6E1B-4A7C-8A0F-72F86C0C0B2A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

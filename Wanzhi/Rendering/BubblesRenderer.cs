@@ -29,11 +29,11 @@ public class BubblesRenderer : IBackgroundEffectRenderer, IVariationOffsetRender
         public double Pulse;
     }
 
-    public BubblesRenderer(double width, double height, int bubbleCount = 5)
+    public BubblesRenderer(double width, double height, int bubbleCount = 5, int seedBase = 0)
     {
         _canvasWidth = width;
         _canvasHeight = height;
-        _seedBase = Random.Shared.Next();
+        _seedBase = seedBase;
 
         var count = Math.Max(5, bubbleCount);
         _bubbles = new Ellipse[count];

@@ -39,11 +39,11 @@ public class BlobsRenderer : IBackgroundEffectRenderer, IVariationOffsetRenderer
         public double P5;
     }
 
-    public BlobsRenderer(double width, double height, int blobCount = 5)
+    public BlobsRenderer(double width, double height, int blobCount = 5, int seedBase = 0)
     {
         _canvasWidth = width;
         _canvasHeight = height;
-        _seedBase = Random.Shared.Next();
+        _seedBase = seedBase;
 
         var count = Math.Max(5, blobCount);
         _blobs = new Path[count];
