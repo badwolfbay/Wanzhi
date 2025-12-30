@@ -363,7 +363,7 @@ public partial class MainWindow : Window
         await LoadPoetryAsync(updateBackground: false);
     }
 
-    private async System.Threading.Tasks.Task LoadPoetryAsync(bool updateBackground)
+    private async System.Threading.Tasks.Task LoadPoetryAsync(bool updateBackground, bool skipAutoApply = false)
     {
         System.Threading.Interlocked.Increment(ref _diagLoadPoetryCalls);
         PoetryData? poetry = null;
@@ -455,7 +455,7 @@ public partial class MainWindow : Window
                 }
             }
 
-            if (!randomizedWaveColor)
+            if (!randomizedWaveColor && !skipAutoApply)
             {
                 _ = QueueApplyWallpaperAsync();
             }
@@ -1165,7 +1165,7 @@ public partial class MainWindow : Window
 
     public async System.Threading.Tasks.Task ApplyWallpaperWithPoetryAsync(bool updateBackground, bool silent)
     {
-        await LoadPoetryAsync(updateBackground: updateBackground);
+        await LoadPoetryAsync(updateBackground: updateBackground, skipAutoApply: true);
         await ApplyAsWallpaperAsync(silent: silent);
     }
 
