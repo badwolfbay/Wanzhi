@@ -164,7 +164,7 @@ public partial class App : Application
             if (string.Equals(_workerMode, "refresh", StringComparison.OrdinalIgnoreCase))
             {
                 Log("Creating MainWindow...");
-                _mainWindow = new MainWindow(startupUpdateBackground: false, startupLoadPoetry: false);
+                _mainWindow = new MainWindow(startupUpdateBackground: false, startupLoadPoetry: false, enableAutoRefresh: false);
                 this.MainWindow = _mainWindow;
                 Log("MainWindow created.");
 
@@ -201,7 +201,7 @@ public partial class App : Application
             {
                 if (_mainWindow == null)
                 {
-                    _mainWindow = new MainWindow(startupUpdateBackground: false, startupLoadPoetry: false);
+                    _mainWindow = new MainWindow(startupUpdateBackground: false, startupLoadPoetry: false, enableAutoRefresh: false);
                     _mainWindow.Hide();
                 }
 
@@ -389,7 +389,7 @@ public partial class App : Application
             var created = false;
             if (window == null)
             {
-                window = new MainWindow(startupUpdateBackground: false, startupLoadPoetry: false);
+                window = new MainWindow(startupUpdateBackground: false, startupLoadPoetry: false, enableAutoRefresh: false);
                 created = true;
             }
 

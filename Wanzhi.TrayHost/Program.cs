@@ -3,8 +3,11 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.IO.Pipes;
+using System.Text.Json;
 using System.Threading;
 using System.Windows.Forms;
+
+using ThreadingTimer = System.Threading.Timer;
 
 namespace Wanzhi.TrayHost;
 
@@ -15,6 +18,12 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
     private readonly Mutex _singleInstanceMutex;
     private readonly NotifyIcon _notifyIcon;
+
+    private FileSystemWatcher? _settingsWatcher;
+    private ThreadingTimer? _settingsDebounceTimer;
+    private ThreadingTimer? _autoRefreshTimer;
+    private readonly object _autoRefreshGate = new object();
+    private int _refreshInFlight;
 
     public TrayApplicationContext()
     {
@@ -34,6 +43,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
         };
 
         _notifyIcon.DoubleClick += (_, _) => LaunchOrActivateSettings();
+
+        StartOrUpdateAutoRefresh();
+        StartSettingsWatcher();
     }
 
     protected override void Dispose(bool disposing)
@@ -42,6 +54,11 @@ internal sealed class TrayApplicationContext : ApplicationContext
         {
             _notifyIcon.Visible = false;
             _notifyIcon.Dispose();
+
+            try { _settingsWatcher?.Dispose(); } catch { }
+            try { _settingsDebounceTimer?.Dispose(); } catch { }
+            try { _autoRefreshTimer?.Dispose(); } catch { }
+
             try { _singleInstanceMutex.ReleaseMutex(); } catch { }
             _singleInstanceMutex.Dispose();
         }
@@ -90,6 +107,127 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private void ExitApplication()
     {
         ExitThread();
+    }
+
+    private static string GetSettingsPath()
+    {
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Wanzhi",
+            "settings.json");
+    }
+
+    private static int ReadRefreshIntervalMinutes()
+    {
+        try
+        {
+            var path = GetSettingsPath();
+            if (!File.Exists(path))
+            {
+                return 60;
+            }
+
+            var json = File.ReadAllText(path);
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("RefreshIntervalMinutes", out var prop)
+                && prop.ValueKind == JsonValueKind.Number
+                && prop.TryGetInt32(out var minutes))
+            {
+                return minutes;
+            }
+        }
+        catch
+        {
+        }
+
+        return 60;
+    }
+
+    private void StartOrUpdateAutoRefresh()
+    {
+        lock (_autoRefreshGate)
+        {
+            var minutes = ReadRefreshIntervalMinutes();
+            if (minutes <= 0)
+            {
+                _autoRefreshTimer?.Dispose();
+                _autoRefreshTimer = null;
+                return;
+            }
+
+            var interval = TimeSpan.FromMinutes(Math.Max(1, minutes));
+            _autoRefreshTimer?.Dispose();
+            _autoRefreshTimer = new ThreadingTimer(_ => TriggerAutoRefresh(), null, interval, interval);
+        }
+    }
+
+    private void TriggerAutoRefresh()
+    {
+        if (Interlocked.Exchange(ref _refreshInFlight, 1) == 1)
+        {
+            return;
+        }
+
+        try
+        {
+            LaunchWorker("refresh", silent: true);
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _refreshInFlight, 0);
+        }
+    }
+
+    private void StartSettingsWatcher()
+    {
+        try
+        {
+            var path = GetSettingsPath();
+            var dir = Path.GetDirectoryName(path);
+            var file = Path.GetFileName(path);
+            if (string.IsNullOrWhiteSpace(dir) || string.IsNullOrWhiteSpace(file))
+            {
+                return;
+            }
+
+            Directory.CreateDirectory(dir);
+
+            _settingsDebounceTimer = new ThreadingTimer(_ =>
+            {
+                try
+                {
+                    StartOrUpdateAutoRefresh();
+                }
+                catch
+                {
+                }
+            });
+
+            void schedule()
+            {
+                try
+                {
+                    _settingsDebounceTimer?.Change(400, Timeout.Infinite);
+                }
+                catch
+                {
+                }
+            }
+
+            _settingsWatcher = new FileSystemWatcher(dir)
+            {
+                Filter = file,
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName
+            };
+
+            _settingsWatcher.Changed += (_, _) => schedule();
+            _settingsWatcher.Created += (_, _) => schedule();
+            _settingsWatcher.Renamed += (_, _) => schedule();
+            _settingsWatcher.EnableRaisingEvents = true;
+        }
+        catch
+        {
+        }
     }
 
     private void LaunchOrActivateSettings()

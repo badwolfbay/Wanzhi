@@ -27,9 +27,10 @@ public partial class MainWindow : Window
     private readonly JinrishiciService _poetryService;
     private readonly bool _startupUpdateBackground;
     private readonly bool _startupLoadPoetry;
+    private readonly bool _enableAutoRefresh;
     private IBackgroundEffectRenderer? _backgroundEffectRenderer;
 
-    private readonly DispatcherTimer _poetryRefreshTimer;
+    private readonly DispatcherTimer? _poetryRefreshTimer;
     private readonly DispatcherTimer _diagTimer;
     private readonly ThemeDetector _themeDetector;
     private bool _isDarkTheme;
@@ -123,31 +124,35 @@ public partial class MainWindow : Window
     private const int SPIF_UPDATEINIFILE = 0x01;
     private const int SPIF_SENDCHANGE = 0x02;
 
-    public MainWindow() : this(startupUpdateBackground: true, startupLoadPoetry: true)
+    public MainWindow() : this(startupUpdateBackground: true, startupLoadPoetry: true, enableAutoRefresh: true)
     {
     }
 
-    public MainWindow(bool startupUpdateBackground) : this(startupUpdateBackground, startupLoadPoetry: true)
+    public MainWindow(bool startupUpdateBackground) : this(startupUpdateBackground, startupLoadPoetry: true, enableAutoRefresh: true)
     {
     }
 
-    public MainWindow(bool startupUpdateBackground, bool startupLoadPoetry)
+    public MainWindow(bool startupUpdateBackground, bool startupLoadPoetry, bool enableAutoRefresh)
     {
         _startupUpdateBackground = startupUpdateBackground;
         _startupLoadPoetry = startupLoadPoetry;
+        _enableAutoRefresh = enableAutoRefresh;
         InitializeComponent();
 
         _poetryService = new JinrishiciService();
         _themeDetector = new ThemeDetector();
 
-        // 初始化诗词刷新定时器
-        _poetryRefreshTimer = new DispatcherTimer();
-        _poetryRefreshTimer.Tick += async (s, e) =>
+        // 初始化诗词刷新定时器（Worker 模式下禁用，交由 TrayHost 统一负责）
+        if (_enableAutoRefresh)
         {
-            System.Threading.Interlocked.Increment(ref _diagPoetryRefreshTicks);
-            var settings = AppSettings.Instance;
-            await LoadPoetryAsync(updateBackground: settings.RandomTraditionalWaveColorOnRefresh);
-        };
+            _poetryRefreshTimer = new DispatcherTimer();
+            _poetryRefreshTimer.Tick += async (s, e) =>
+            {
+                System.Threading.Interlocked.Increment(ref _diagPoetryRefreshTicks);
+                var settings = AppSettings.Instance;
+                await LoadPoetryAsync(updateBackground: settings.RandomTraditionalWaveColorOnRefresh);
+            };
+        }
 
         _diagTimer = new DispatcherTimer
         {
@@ -196,8 +201,11 @@ public partial class MainWindow : Window
             TryLoadPoetryFromCache();
         }
 
-        // 设置诗词刷新间隔
-        UpdateRefreshInterval();
+        // 设置诗词刷新间隔（仅在启用自动刷新时）
+        if (_enableAutoRefresh)
+        {
+            UpdateRefreshInterval();
+        }
 
         App.Log("App Initialized.");
 
@@ -277,7 +285,7 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
     {
-        _poetryRefreshTimer.Stop();
+        _poetryRefreshTimer?.Stop();
         _diagTimer.Stop();
     }
 
@@ -1056,6 +1064,11 @@ public partial class MainWindow : Window
 
     private void UpdateRefreshInterval()
     {
+        if (_poetryRefreshTimer == null)
+        {
+            return;
+        }
+
         var interval = AppSettings.Instance.RefreshIntervalMinutes;
         if (interval <= 0)
         {
@@ -1122,7 +1135,10 @@ public partial class MainWindow : Window
                 break;
 
             case nameof(AppSettings.RefreshIntervalMinutes):
-                UpdateRefreshInterval();
+                if (_enableAutoRefresh)
+                {
+                    UpdateRefreshInterval();
+                }
                 break;
 
             case nameof(AppSettings.PoetryFontSize):
