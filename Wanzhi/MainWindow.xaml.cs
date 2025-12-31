@@ -467,6 +467,7 @@ public partial class MainWindow : Window
         var cts = new CancellationTokenSource();
         var prev = System.Threading.Interlocked.Exchange(ref _applyWallpaperCts, cts);
         prev?.Cancel();
+
         prev?.Dispose();
 
         try
@@ -478,17 +479,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        await _applyWallpaperLock.WaitAsync(cts.Token);
-        try
-        {
-            var op = Dispatcher.InvokeAsync(() => ApplyAsWallpaperAsync(silent: true), DispatcherPriority.Background);
-            var inner = await op.Task;
-            await inner;
-        }
-        finally
-        {
-            _applyWallpaperLock.Release();
-        }
+        var op = Dispatcher.InvokeAsync(() => ApplyAsWallpaperAsync(silent: true), DispatcherPriority.Background);
+        var inner = await op.Task;
+        await inner;
     }
 
     private Color GetLegibleTextColor(Color backgroundColor)
@@ -1074,7 +1067,7 @@ public partial class MainWindow : Window
         _poetryRefreshTimer.Start();
     }
 
-    private async void Settings_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    private void Settings_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         System.Threading.Interlocked.Increment(ref _diagSettingsChanged);
         switch (e.PropertyName)
@@ -1096,7 +1089,7 @@ public partial class MainWindow : Window
                 if (_currentPoetry != null)
                 {
                     UpdatePoetryDisplay(_currentPoetry, updateBackground: true);
-                    await ApplyAsWallpaperAsync(silent: true);
+                    _ = QueueApplyWallpaperAsync();
                 }
                 break;
 
@@ -1106,7 +1099,7 @@ public partial class MainWindow : Window
                 if (_currentPoetry != null)
                 {
                     UpdatePoetryDisplay(_currentPoetry, updateBackground: true);
-                    await ApplyAsWallpaperAsync(silent: true);
+                    _ = QueueApplyWallpaperAsync();
                 }
                 break;
 
@@ -1114,7 +1107,7 @@ public partial class MainWindow : Window
                 UpdateTraditionalColorNameOverlay();
                 if (_currentPoetry != null)
                 {
-                    await ApplyAsWallpaperAsync(silent: true);
+                    _ = QueueApplyWallpaperAsync();
                 }
                 break;
 
@@ -1124,7 +1117,7 @@ public partial class MainWindow : Window
                 if (_currentPoetry != null)
                 {
                     UpdatePoetryDisplay(_currentPoetry, updateBackground: true);
-                    await ApplyAsWallpaperAsync(silent: true);
+                    _ = QueueApplyWallpaperAsync();
                 }
                 break;
 
@@ -1145,7 +1138,7 @@ public partial class MainWindow : Window
                 {
                     UpdatePoetryDisplay(_currentPoetry, updateBackground: false);
                     UpdateTraditionalColorNameOverlay();
-                    await ApplyAsWallpaperAsync(silent: true);
+                    _ = QueueApplyWallpaperAsync();
                 }
                 break;
 
@@ -1157,7 +1150,7 @@ public partial class MainWindow : Window
                 if (_currentPoetry != null)
                 {
                     UpdatePoetryDisplay(_currentPoetry, updateBackground: false);
-                    await ApplyAsWallpaperAsync(silent: true);
+                    _ = QueueApplyWallpaperAsync();
                 }
                 break;
         }
@@ -1177,10 +1170,60 @@ public partial class MainWindow : Window
 
     public async System.Threading.Tasks.Task ApplyAsWallpaperAsync(bool silent = false)
     {
+        await _applyWallpaperLock.WaitAsync();
+        try
+        {
+            TryCleanupTempWallpapers();
+            await ApplyAsWallpaperInternalAsync(silent: silent);
+        }
+        finally
+        {
+            _applyWallpaperLock.Release();
+        }
+    }
+
+    private async System.Threading.Tasks.Task ApplyAsWallpaperInternalAsync(bool silent)
+    {
         System.Threading.Interlocked.Increment(ref _diagApplyWallpaperCalls);
         var applyBatchId = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss_fff");
 
         App.Log($"ApplyAsWallpaper called (Static Image Mode). batch={applyBatchId}");
+
+        var appDataPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Wanzhi");
+        System.IO.Directory.CreateDirectory(appDataPath);
+
+        void CleanupBatchTempFiles()
+        {
+            try
+            {
+                var patterns = new[]
+                {
+                    $"wallpaper_*_{applyBatchId}.tmp.png",
+                    $"wallpaper_{applyBatchId}.tmp.png"
+                };
+
+                foreach (var pattern in patterns)
+                {
+                    string[] files;
+                    try
+                    {
+                        files = System.IO.Directory.GetFiles(appDataPath, pattern);
+                    }
+                    catch
+                    {
+                        continue;
+                    }
+
+                    foreach (var f in files)
+                    {
+                        try { System.IO.File.Delete(f); } catch { }
+                    }
+                }
+            }
+            catch
+            {
+            }
+        }
 
         void ReplaceFile(string tempPath, string finalPath)
         {
@@ -1247,8 +1290,6 @@ public partial class MainWindow : Window
                         throw new Exception("无法获取窗口内容进行渲染");
                     }
 
-                    var appDataPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Wanzhi");
-                    System.IO.Directory.CreateDirectory(appDataPath);
                     App.Log($"Multi-monitor wallpaper output dir: {appDataPath}");
 
                     var batchId = applyBatchId;
@@ -1398,6 +1439,7 @@ public partial class MainWindow : Window
                         WaveCanvas.Visibility = Visibility.Collapsed;
                     }
 
+                    CleanupBatchTempFiles();
                     return;
                 }
             }
@@ -1486,8 +1528,6 @@ public partial class MainWindow : Window
             renderBitmap.Freeze();
 
             // 3. 保存为文件
-            var appDataPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Wanzhi");
-            System.IO.Directory.CreateDirectory(appDataPath);
             var batchId = applyBatchId;
             var tempWallpaperPath = System.IO.Path.Combine(appDataPath, $"wallpaper_{batchId}.tmp.png");
             var wallpaperPath = System.IO.Path.Combine(appDataPath, "wallpaper.png");
@@ -1536,6 +1576,8 @@ public partial class MainWindow : Window
                 {
                     WaveCanvas.Visibility = Visibility.Collapsed;
                 }
+
+                CleanupBatchTempFiles();
             }
             else
             {
@@ -1554,6 +1596,39 @@ public partial class MainWindow : Window
         {
             // 恢复波浪可见性
             WaveCanvas.Visibility = prevWaveVisibility;
+            CleanupBatchTempFiles();
+        }
+    }
+
+    private static void TryCleanupTempWallpapers()
+    {
+        try
+        {
+            var appDataPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Wanzhi");
+            if (!System.IO.Directory.Exists(appDataPath))
+            {
+                return;
+            }
+
+            var nowUtc = DateTime.UtcNow;
+            var files = System.IO.Directory.GetFiles(appDataPath, "wallpaper_*.tmp.png");
+            foreach (var file in files)
+            {
+                try
+                {
+                    var age = nowUtc - System.IO.File.GetLastWriteTimeUtc(file);
+                    if (age > TimeSpan.FromMinutes(5))
+                    {
+                        System.IO.File.Delete(file);
+                    }
+                }
+                catch
+                {
+                }
+            }
+        }
+        catch
+        {
         }
     }
 }
