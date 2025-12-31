@@ -284,6 +284,11 @@ namespace Wanzhi
             AuthorFontSizeSlider.Value = _settings.AuthorFontSize;
             RefreshIntervalSlider.Value = _settings.RefreshIntervalMinutes;
 
+            if (RefreshIntervalText != null)
+            {
+                RefreshIntervalText.Text = _settings.RefreshIntervalMinutes.ToString();
+            }
+
             if (RandomTraditionalWaveColorOnRefreshCheckBox != null)
             {
                 RandomTraditionalWaveColorOnRefreshCheckBox.IsChecked = _settings.RandomTraditionalWaveColorOnRefresh;
