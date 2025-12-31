@@ -88,68 +88,7 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         name: 万枝 ${{ github.ref_name }} - Release
-        body: |
-          # 万枝 ${{ github.ref_name }}
-
-          ## 🆕 1.2.4 更新
-
-          - 增加显示完整版诗词的选项
-          - tray-host + worker架构下优化内存占用           
-
-          ## 🆕 1.2.3 更新
-
-          - 优化深色/浅色模式显示效果：深色模式下壁纸在背景色与效果背景基础上更适配深色
-          - 深色模式下诗词与相关文字使用白色显示，提升对比度
-
-          ## 🆕 1.2.2 更新
-          
-          - 可以设置在右侧显示传统色名称          
-          
-          ## 🆕 1.2.1 更新
-          
-          - 新增背景效果：圆泡（Bubbles）
-          - 新增背景效果：软团（Blobs）
-          - 可在设置中切换不同背景效果
-          
-          ## 📦 下载
-          
-          ### 安装包版 (推荐)
-          - **文件**: `WanzhiSetup_*.exe`
-          - 标准 Windows 安装程序
-          - 自动配置，一键安装
-          
-          ### 便携版
-          - **不带运行库**: `Wanzhi_${{ github.ref_name }}_Portable_NoRuntime.zip`
-            - 体积更小
-            - 需要安装 [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
-          - **包含运行库**: `Wanzhi_${{ github.ref_name }}_Portable_WithRuntime.zip`
-            - 解压即用，无需额外安装运行库
-          
-          ## ✨ 主要特性
-          
-          - 🎨 精美的波浪动画背景
-          - 🫧 圆泡背景效果（新增）
-          - 🧊 软团背景效果（新增）
-          - 📜 每日诗词自动更新
-          - 🎭 支持竖排/横排双向排版
-          - 🌈 自定义背景色和波浪色
-          - 🖋️ 字体和字号自由调整
-          
-          ## 🚀 快速开始
-          
-          **安装包版**:
-          1. 下载并运行 `WanzhiSetup_*.exe`
-          2. 按照向导完成安装
-          3. 运行万枝
-          
-          **便携版**:
-          1. 下载并解压 ZIP 文件
-          2. 运行 `Wanzhi.exe`
-          3. 右键托盘图标 → 设置
-          
-          ---
-          
-          完整文档: [README.md](https://github.com/${{ github.repository }}/blob/main/README.md)
+        generate_release_notes: true
         files: |
           Wanzhi_${{ github.ref_name }}_Portable_NoRuntime.zip
           Wanzhi_${{ github.ref_name }}_Portable_WithRuntime.zip
