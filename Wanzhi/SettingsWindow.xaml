@@ -294,6 +294,14 @@
                                      Content="开机自动启动"
                                      Checked="AutoStartCheckBox_Changed"
                                      Unchecked="AutoStartCheckBox_Changed"/>
+
+                            <CheckBox x:Name="TrayLeftClickRefreshPoetryCheckBox"
+                                     Content="托盘左键点击刷新诗词（默认左键打开软件）"
+                                     Margin="0,10,0,0"
+                                     IsChecked="False"
+                                     VerticalAlignment="Center"
+                                     Checked="TrayLeftClickRefreshPoetryCheckBox_Changed"
+                                     Unchecked="TrayLeftClickRefreshPoetryCheckBox_Changed"/>
                         </StackPanel>
                     </GroupBox>
                 </TabItem>

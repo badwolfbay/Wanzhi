@@ -42,6 +42,29 @@ internal sealed class TrayApplicationContext : ApplicationContext
             ContextMenuStrip = BuildMenu()
         };
 
+        _notifyIcon.MouseUp += (_, e) =>
+        {
+            try
+            {
+                if (e.Button != MouseButtons.Left)
+                {
+                    return;
+                }
+
+                if (ReadTrayLeftClickRefreshPoetry())
+                {
+                    LaunchWorker("refresh", silent: true);
+                }
+                else
+                {
+                    LaunchOrActivateSettings();
+                }
+            }
+            catch
+            {
+            }
+        };
+
         _notifyIcon.DoubleClick += (_, _) => LaunchOrActivateSettings();
 
         StartOrUpdateAutoRefresh();
@@ -141,6 +164,31 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
 
         return 60;
+    }
+
+    private static bool ReadTrayLeftClickRefreshPoetry()
+    {
+        try
+        {
+            var path = GetSettingsPath();
+            if (!File.Exists(path))
+            {
+                return false;
+            }
+
+            var json = File.ReadAllText(path);
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("TrayLeftClickRefreshPoetry", out var prop)
+                && (prop.ValueKind == JsonValueKind.True || prop.ValueKind == JsonValueKind.False))
+            {
+                return prop.GetBoolean();
+            }
+        }
+        catch
+        {
+        }
+
+        return false;
     }
 
     private void StartOrUpdateAutoRefresh()

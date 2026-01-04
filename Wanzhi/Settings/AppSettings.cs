@@ -182,6 +182,14 @@ namespace Wanzhi.Settings
             set { _autoStart = value; OnPropertyChanged(); }
         }
 
+        // 托盘左键点击行为：true=刷新诗词，false=打开软件（设置窗口）
+        private bool _trayLeftClickRefreshPoetry = false;
+        public bool TrayLeftClickRefreshPoetry
+        {
+            get => _trayLeftClickRefreshPoetry;
+            set { _trayLeftClickRefreshPoetry = value; OnPropertyChanged(); }
+        }
+
         // 作者文字大小
         private int _authorFontSize = 18;
         public int AuthorFontSize

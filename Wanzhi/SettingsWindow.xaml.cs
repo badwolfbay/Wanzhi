@@ -304,6 +304,11 @@ namespace Wanzhi
                 ShowFullPoetryCheckBox.IsChecked = _settings.ShowFullPoetry;
             }
 
+            if (TrayLeftClickRefreshPoetryCheckBox != null)
+            {
+                TrayLeftClickRefreshPoetryCheckBox.IsChecked = _settings.TrayLeftClickRefreshPoetry;
+            }
+
             // 加载字符间距设置
             PoetryCharacterSpacingSlider.Value = _settings.PoetryCharacterSpacing;
             PoetryVerticalCharacterSpacingSlider.Value = _settings.PoetryVerticalCharacterSpacing;
@@ -324,6 +329,12 @@ namespace Wanzhi
             {
                 _isRefreshingState = false;
             }
+        }
+
+        private void TrayLeftClickRefreshPoetryCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_settings == null || _isRefreshingState) return;
+            _settings.TrayLeftClickRefreshPoetry = TrayLeftClickRefreshPoetryCheckBox.IsChecked == true;
         }
 
         private void RandomTraditionalWaveColorOnRefreshCheckBox_Changed(object sender, RoutedEventArgs e)
