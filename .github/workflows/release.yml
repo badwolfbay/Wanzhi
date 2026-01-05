@@ -28,13 +28,13 @@ jobs:
       run: dotnet publish Wanzhi/Wanzhi.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:IncludeAllContentForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false -o publish_framework
 
     - name: Build Portable (Self-Contained)
-      run: dotnet publish Wanzhi/Wanzhi.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -p:DebugType=None -p:DebugSymbols=false -o publish_selfcontained
+      run: dotnet publish Wanzhi/Wanzhi.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o publish_selfcontained
 
     - name: Build TrayHost (Framework-Dependent)
       run: dotnet publish Wanzhi.TrayHost/Wanzhi.TrayHost.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o publish_tray
 
     - name: Build TrayHost (Self-Contained)
-      run: dotnet publish Wanzhi.TrayHost/Wanzhi.TrayHost.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -p:DebugType=None -p:DebugSymbols=false -o publish_tray_selfcontained
+      run: dotnet publish Wanzhi.TrayHost/Wanzhi.TrayHost.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o publish_tray_selfcontained
 
     - name: Merge TrayHost into portable packages
       run: |
